@@ -38,3 +38,6 @@ CMakeFiles/
 
 # disk file
 *.img
+
+# cmake file
+*.cmake

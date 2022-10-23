@@ -32,6 +32,10 @@ struct bit_block
     uint8_t bytes[BLOCK_SIZE];
 };
 
+struct inode
+{
+};
+
 int mkfs();
 int mksb();
 int mkbitmap();
