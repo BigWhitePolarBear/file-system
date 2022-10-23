@@ -5,6 +5,11 @@
 #define BLOCK_CNT DISK_SIZE / BLOCK_SIZE
 #define INODE_CNT DISK_SIZE / (8 * 1024)
 
+// 文件系统布局：
+// | 超级块 | 位图 | inodes | 数据块 |
+// 由于一共有 100k 个块，因此需要 12800B 储存
+// 位图，占用 13 个块。
+
 struct super_block
 {
     uint32_t status; // 状态: 0 正常 | 1 异常
@@ -22,8 +27,15 @@ struct super_block
     uint32_t padding[BLOCK_SIZE / 4 - 11];
 };
 
-int mkfs();
+struct bit_block
+{
+    uint8_t bytes[BLOCK_SIZE];
+};
 
+int mkfs();
 int mksb();
+int mkbitmap();
 
 int sb_update_last_wtime();
+
+void set_bit_block(struct bit_block *bb, uint32_t pos);

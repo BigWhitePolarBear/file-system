@@ -1,4 +1,5 @@
 #include "fs.h"
+#include "assert.h"
 #include "time.h"
 
 struct super_block sb;
@@ -6,6 +7,9 @@ struct super_block sb;
 int mkfs()
 {
     if (mksb())
+        return -1;
+
+    if (mkbitmap())
         return -1;
 
     return 0;
@@ -22,10 +26,8 @@ int mksb()
     sb.icnt = INODE_CNT;
     sb.free_icnt = INODE_CNT;
     sb.isize = 256;
-    // 数据块数量，由于一共有 100k 个块，因此需要 12800B 储存
-    // 位图，占用 13 个块，超级块占用一个块，一共减 14 。
-    sb.data_bcnt = BLOCK_CNT - 14 - INODE_CNT * 256 / 1024;
-    sb.free_data_bcnt = BLOCK_CNT - 14 - INODE_CNT * 256 / 1024;
+    sb.data_bcnt = BLOCK_CNT - 1 - 13 - INODE_CNT * 256 / 1024;
+    sb.free_data_bcnt = BLOCK_CNT - 1 - 13 - INODE_CNT * 256 / 1024;
 
     return bwrite(0, &sb);
 }
@@ -35,4 +37,25 @@ int sb_update_last_wtime()
     sb.last_wtime = (uint32_t)time(NULL);
 
     return bwrite(0, &sb);
+}
+
+int mkbitmap()
+{
+    // 需要 13 个块储存位图。
+    struct bit_block bb;
+    for (int i = 1; i <= 13; i++)
+        if (bwrite(i, &bb))
+            return -1;
+
+    // 第一个位图的低 14 位置 1 。
+    for (int pos = 0; pos < 14; pos++)
+        set_bit_block(&bb, pos);
+    return bwrite(1, &bb);
+}
+
+void set_bit_block(struct bit_block *bb, uint32_t pos)
+{
+    // 偏移为 3 的位运算即为乘 8 或除 8 。
+    assert(pos < BLOCK_SIZE << 3 - 1);
+    bb->bytes[pos >> 3] |= 1 << (pos & 7);
 }
