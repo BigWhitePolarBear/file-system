@@ -2,7 +2,7 @@
 #include "assert.h"
 #include "time.h"
 
-struct super_block sb;
+superblock_t sb;
 
 int mkfs()
 {
@@ -18,16 +18,16 @@ int mkfs()
 int mksb()
 {
     sb.status = 0;
-    sb.format_time = (uint32_t)time(NULL);
+    sb.fmt_time = (uint32_t)time(NULL);
     sb.last_wtime = (uint32_t)time(NULL);
     sb.bsize = BLOCK_SIZE;
     sb.bcnt = BLOCK_CNT;
     sb.free_bcnt = BLOCK_CNT - 1;
     sb.icnt = INODE_CNT;
     sb.free_icnt = INODE_CNT;
-    sb.isize = 256;
-    sb.data_bcnt = BLOCK_CNT - 1 - 13 - INODE_CNT * 256 / 1024;
-    sb.free_data_bcnt = BLOCK_CNT - 1 - 13 - INODE_CNT * 256 / 1024;
+    sb.isize = 128;
+    sb.data_bcnt = BLOCK_CNT - 1 - 13 - INODE_CNT * 128 / 1024;
+    sb.free_data_bcnt = BLOCK_CNT - 1 - 13 - INODE_CNT * 128 / 1024;
 
     return bwrite(0, &sb);
 }
@@ -42,18 +42,18 @@ int sb_update_last_wtime()
 int mkbitmap()
 {
     // 需要 13 个块储存位图。
-    struct bit_block bb;
+    bitblock_t bb;
     for (int i = 1; i <= 13; i++)
         if (bwrite(i, &bb))
             return -1;
 
     // 第一个位图的低 14 位置 1 。
     for (int pos = 0; pos < 14; pos++)
-        set_bit_block(&bb, pos);
+        set_bitblock(&bb, pos);
     return bwrite(1, &bb);
 }
 
-void set_bit_block(struct bit_block *bb, uint32_t pos)
+void set_bitblock(bitblock_t *bb, uint32_t pos)
 {
     // 偏移为 3 的位运算即为乘 8 或除 8 。
     assert(pos < BLOCK_SIZE << 3 - 1);
