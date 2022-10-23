@@ -35,3 +35,6 @@
 .vscode/
 build/
 CMakeFiles/
+
+# disk file
+*.img

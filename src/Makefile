@@ -154,6 +154,30 @@ device.c.s:
 	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/device.c.s
 .PHONY : device.c.s
 
+fs.o: fs.c.o
+.PHONY : fs.o
+
+# target to build an object file
+fs.c.o:
+	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/fs.c.o
+.PHONY : fs.c.o
+
+fs.i: fs.c.i
+.PHONY : fs.i
+
+# target to preprocess a source file
+fs.c.i:
+	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/fs.c.i
+.PHONY : fs.c.i
+
+fs.s: fs.c.s
+.PHONY : fs.s
+
+# target to generate assembly for a file
+fs.c.s:
+	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/fs.c.s
+.PHONY : fs.c.s
+
 simdisk.o: simdisk.c.o
 .PHONY : simdisk.o
 
@@ -190,6 +214,9 @@ help:
 	@echo "... device.o"
 	@echo "... device.i"
 	@echo "... device.s"
+	@echo "... fs.o"
+	@echo "... fs.i"
+	@echo "... fs.s"
 	@echo "... simdisk.o"
 	@echo "... simdisk.i"
 	@echo "... simdisk.s"
