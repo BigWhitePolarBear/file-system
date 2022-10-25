@@ -1,6 +1,7 @@
 #include "device.h"
 #include "assert.h"
 #include "common.h"
+#include "stdio.h"
 
 // device 部分的代码负责硬盘这一块设备的 io 接口模拟，其中会维护 disk
 // 作为文件流指针， cur_id 作为当前 disk 指向的块编号，在读写前对其进行

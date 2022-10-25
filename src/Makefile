@@ -144,6 +144,30 @@ shell/fast:
 	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/shell.dir/build.make src/CMakeFiles/shell.dir/build
 .PHONY : shell/fast
 
+bitmap.o: bitmap.c.o
+.PHONY : bitmap.o
+
+# target to build an object file
+bitmap.c.o:
+	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/bitmap.c.o
+.PHONY : bitmap.c.o
+
+bitmap.i: bitmap.c.i
+.PHONY : bitmap.i
+
+# target to preprocess a source file
+bitmap.c.i:
+	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/bitmap.c.i
+.PHONY : bitmap.c.i
+
+bitmap.s: bitmap.c.s
+.PHONY : bitmap.s
+
+# target to generate assembly for a file
+bitmap.c.s:
+	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/bitmap.c.s
+.PHONY : bitmap.c.s
+
 cmd.o: cmd.c.o
 .PHONY : cmd.o
 
@@ -192,53 +216,53 @@ device.c.s:
 	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/device.c.s
 .PHONY : device.c.s
 
-fs.o: fs.c.o
-.PHONY : fs.o
+format.o: format.c.o
+.PHONY : format.o
 
 # target to build an object file
-fs.c.o:
-	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/fs.c.o
-.PHONY : fs.c.o
+format.c.o:
+	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/format.c.o
+.PHONY : format.c.o
 
-fs.i: fs.c.i
-.PHONY : fs.i
+format.i: format.c.i
+.PHONY : format.i
 
 # target to preprocess a source file
-fs.c.i:
-	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/fs.c.i
-.PHONY : fs.c.i
+format.c.i:
+	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/format.c.i
+.PHONY : format.c.i
 
-fs.s: fs.c.s
-.PHONY : fs.s
+format.s: format.c.s
+.PHONY : format.s
 
 # target to generate assembly for a file
-fs.c.s:
-	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/fs.c.s
-.PHONY : fs.c.s
+format.c.s:
+	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/format.c.s
+.PHONY : format.c.s
 
-fs_bitmap.o: fs_bitmap.c.o
-.PHONY : fs_bitmap.o
+fun.o: fun.c.o
+.PHONY : fun.o
 
 # target to build an object file
-fs_bitmap.c.o:
-	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/fs_bitmap.c.o
-.PHONY : fs_bitmap.c.o
+fun.c.o:
+	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/fun.c.o
+.PHONY : fun.c.o
 
-fs_bitmap.i: fs_bitmap.c.i
-.PHONY : fs_bitmap.i
+fun.i: fun.c.i
+.PHONY : fun.i
 
 # target to preprocess a source file
-fs_bitmap.c.i:
-	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/fs_bitmap.c.i
-.PHONY : fs_bitmap.c.i
+fun.c.i:
+	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/fun.c.i
+.PHONY : fun.c.i
 
-fs_bitmap.s: fs_bitmap.c.s
-.PHONY : fs_bitmap.s
+fun.s: fun.c.s
+.PHONY : fun.s
 
 # target to generate assembly for a file
-fs_bitmap.c.s:
-	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/fs_bitmap.c.s
-.PHONY : fs_bitmap.c.s
+fun.c.s:
+	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/fun.c.s
+.PHONY : fun.c.s
 
 shell.o: shell.c.o
 .PHONY : shell.o
@@ -298,18 +322,21 @@ help:
 	@echo "... rebuild_cache"
 	@echo "... shell"
 	@echo "... simdisk"
+	@echo "... bitmap.o"
+	@echo "... bitmap.i"
+	@echo "... bitmap.s"
 	@echo "... cmd.o"
 	@echo "... cmd.i"
 	@echo "... cmd.s"
 	@echo "... device.o"
 	@echo "... device.i"
 	@echo "... device.s"
-	@echo "... fs.o"
-	@echo "... fs.i"
-	@echo "... fs.s"
-	@echo "... fs_bitmap.o"
-	@echo "... fs_bitmap.i"
-	@echo "... fs_bitmap.s"
+	@echo "... format.o"
+	@echo "... format.i"
+	@echo "... format.s"
+	@echo "... fun.o"
+	@echo "... fun.i"
+	@echo "... fun.s"
 	@echo "... shell.o"
 	@echo "... shell.i"
 	@echo "... shell.s"

@@ -1,8 +1,9 @@
 set(File_System_SRC
+  bitmap.c
   cmd.c
   device.c
-  fs.c
-  fs_bitmap.c
+  format.c
+  fun.c
   simdisk.c
 )
 

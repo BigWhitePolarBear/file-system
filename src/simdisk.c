@@ -1,6 +1,7 @@
 #include "cmd.h"
 #include "device.h"
-#include "fs.h"
+#include "format.h"
+#include "stdio.h"
 
 int main()
 {

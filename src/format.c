@@ -1,6 +1,7 @@
-#include "fs.h"
-#include "assert.h"
-#include "stdlib.h"
+#include "format.h"
+#include "bitmap.h"
+#include "fun.h"
+#include "stdio.h"
 #include "string.h"
 #include "time.h"
 
@@ -115,51 +116,4 @@ int mkbitmap()
         sbwrite();
     }
     return 0;
-}
-
-int iread(uint32_t ino, inode_t *const inode)
-{
-    assert(ino < sb.icnt);
-
-    itableblock_t itb;
-    if (bread(sb.inode_table_start + ino / INODE_PER_BLOCK, &itb))
-    {
-        printf("读取 inode 对应的数据块失败！\n");
-        return -1;
-    }
-    *inode = itb.inodes[ino % INODE_PER_BLOCK];
-
-    return 0;
-}
-
-int iwrite(uint32_t ino, const inode_t *const inode)
-{
-    assert(ino < sb.icnt);
-
-    itableblock_t itb;
-    if (bread(sb.inode_table_start + ino / INODE_PER_BLOCK, &itb))
-    {
-        printf("读取 inode 对应的数据块失败！\n");
-        return -1;
-    }
-    itb.inodes[ino % INODE_PER_BLOCK] = *inode;
-    if (bwrite(sb.inode_table_start + ino / INODE_PER_BLOCK, &itb))
-    {
-        printf("写入 inode 对应的数据块失败！\n");
-        return -1;
-    }
-    sbwrite();
-
-    return 0;
-}
-
-void sbwrite()
-{
-    sb.last_wtime = (uint32_t)time(NULL);
-    if (bwrite(0, &sb))
-    {
-        printf("写入超级块失败！\n");
-        printf("致命错误，退出系统！\n");
-        exit(-1);
-    }
 }
