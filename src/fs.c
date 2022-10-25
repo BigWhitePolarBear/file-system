@@ -1,16 +1,12 @@
 #include "fs.h"
-#include "common.h"
+#include "stdlib.h"
 #include "time.h"
 
 superblock_t sb;
 
 int mkfs()
 {
-    if (mksb())
-    {
-        printf("格式化超级块失败！\n");
-        return -1;
-    }
+    mksb();
 
     if (mkbitmap())
     {
@@ -27,7 +23,7 @@ int mkfs()
     return 0;
 }
 
-int mksb()
+void mksb()
 {
     sb.status = 0;
     sb.fmt_time = (uint32_t)time(NULL);
@@ -51,16 +47,23 @@ int mksb()
     sb.data_bitmap_start = sb.inode_bitmap_start + sb.inode_bitmap_bcnt;
     sb.data_start = sb.data_bitmap_start + sb.data_bitmap_bcnt;
 
-    if (bwrite(0, &sb))
-    {
-        printf("持久化超级块失败！\n");
-        return -1;
-    }
-    return 0;
+    sb_write();
 }
 
 int mkroot()
 {
+    inode_t inode;
+    inode.ino = 0;
+    inode.ctime = (uint32_t)time(NULL);
+    inode.uid = 0;
+    inode.privilege = 0x00000077;
+
+    if (iwrite(0, &inode))
+    {
+        printf("写入根目录 inode 失败！\n");
+        return -1;
+    }
+    sb_update_last_wtime();
     return 0;
 }
 
@@ -75,27 +78,39 @@ int mkdir(const char *const name)
     return 0;
 }
 
-int sb_update_last_wtime()
-{
-    sb.last_wtime = (uint32_t)time(NULL);
-    if (bwrite(0, &sb))
-    {
-        printf("持久化超级块失败！\n");
-        return -1;
-    }
-    return 0;
-}
-
 int mkbitmap()
 {
     bitblock_t bb;
     // 清空 bitmap 。
     for (int i = sb.inode_bitmap_start; i < sb.data_bitmap_start + sb.data_bitmap_bcnt; i++)
+    {
         if (bwrite(i, &bb))
         {
             printf("持久化 bitmap 失败！\n");
             return -1;
         }
-
+        sb_update_last_wtime();
+    }
     return 0;
+}
+
+void sb_write()
+{
+    if (bwrite(0, &sb))
+    {
+        printf("持久化超级块失败！\n");
+        printf("致命错误，退出系统！\n");
+        exit(-1);
+    }
+}
+
+void sb_update_last_wtime()
+{
+    sb.last_wtime = (uint32_t)time(NULL);
+    if (bwrite(0, &sb))
+    {
+        printf("持久化超级块失败！\n");
+        printf("致命错误，退出系统！\n");
+        exit(-1);
+    }
 }

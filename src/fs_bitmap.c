@@ -19,7 +19,10 @@ uint32_t get_free_inode()
     while (1)
     {
         if (bread(sb.inode_bitmap_start + ino / BIT_PER_BLOCK, &bb))
+        {
+            printf("读取位图失败！\n");
             return 0xffffffff;
+        }
         while (ino % BIT_PER_BLOCK > 0)
         {
             if (test_bitblock(&bb, ino % BIT_PER_BLOCK))
@@ -32,11 +35,8 @@ uint32_t get_free_inode()
                 }
                 sb.free_icnt--;
                 sb.last_alloc_inode = ino;
-                if (bwrite(0, &sb))
-                {
-                    printf("持久化超级块失败！\n");
-                    return 0xffffffff;
-                }
+                sb_write();
+                sb_update_last_wtime();
                 return ino;
             }
             if (ino < sb.icnt - 1)
@@ -72,7 +72,10 @@ uint32_t get_free_data()
     while (1)
     {
         if (bread(sb.data_bitmap_start + bno / BIT_PER_BLOCK, &bb))
+        {
+            printf("读取位图失败！\n");
             return 0xffffffff;
+        }
         while (bno % BIT_PER_BLOCK > 0)
         {
             if (test_bitblock(&bb, bno % BIT_PER_BLOCK))
@@ -85,11 +88,8 @@ uint32_t get_free_data()
                 }
                 sb.free_data_bcnt--;
                 sb.last_alloc_data = bno;
-                if (bwrite(0, &sb))
-                {
-                    printf("持久化超级块失败！\n");
-                    return 0xffffffff;
-                }
+                sb_write();
+                sb_update_last_wtime();
                 return bno;
             }
             if (bno < sb.data_bcnt - 1)
@@ -112,10 +112,17 @@ int set_inode_bitmap(uint32_t pos)
     bitblock_t bb;
 
     if (bread(sb.inode_bitmap_start + pos / BIT_PER_BLOCK, &bb))
+    {
+        printf("读取位图失败！\n");
         return -1;
+    }
     set_bitblock(&bb, pos % BIT_PER_BLOCK);
     if (bwrite(sb.inode_bitmap_start + pos / BIT_PER_BLOCK, &bb))
+    {
+        printf("写入位图失败！\n");
         return -1;
+    }
+    sb_update_last_wtime();
 
     return 0;
 }
@@ -125,10 +132,17 @@ int set_data_bitmap(uint32_t pos)
     bitblock_t bb;
 
     if (bread(sb.data_bitmap_start + pos / BIT_PER_BLOCK, &bb))
+    {
+        printf("读取位图失败！\n");
         return -1;
+    }
     set_bitblock(&bb, pos % BIT_PER_BLOCK);
     if (bwrite(sb.data_bitmap_start + pos / BIT_PER_BLOCK, &bb))
+    {
+        printf("写入位图失败！\n");
         return -1;
+    }
+    sb_update_last_wtime();
 
     return 0;
 }

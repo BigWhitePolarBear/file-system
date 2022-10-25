@@ -45,12 +45,12 @@ typedef struct
 typedef struct
 {
     uint32_t ino;
-    uint32_t size;
+    uint32_t size; // 当 inode 储存目录时， size 代表目录项数量。
     uint32_t bcnt;
     uint32_t uid;
     uint32_t ctime;
     uint32_t wtime;
-    uint32_t privilege; // 仅低 6 位有效，高 3 位为拥有者权限，低 3 位为其他用户权限。
+    uint32_t privilege; // 仅低 8 位有效，高 4 位中的低 3 位为拥有者权限，低 4 位中的低 3 位为其他用户权限。
     uint32_t direct_blocks[8];
     uint32_t indirect_blocks[4];
     uint32_t double_indirect_blocks[2];
@@ -67,15 +67,22 @@ typedef struct
 extern superblock_t sb;
 
 int mkfs();
-int mksb();
+void mksb();
 int mkbitmap();
 int mkroot();
 int mkdir();
 
-int sb_update_last_wtime();
+int iread(uint32_t ino, inode_t *const inode);
+int iwrite(uint32_t ino, const inode_t *const inode);
+
+// 超级块的持久化失败时直接退出系统，因此没有返回值。
+void sb_write();
+// 超级块的持久化失败时直接退出系统，因此没有返回值。
+void sb_update_last_wtime();
 
 // 返回 0xffffffff 即为异常。
 uint32_t get_free_inode();
+// 返回 0xffffffff 即为异常。
 uint32_t get_free_data();
 
 int set_inode_bitmap(uint32_t pos);
