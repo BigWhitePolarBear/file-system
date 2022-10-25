@@ -1,1 +1,11 @@
 #pragma once
+
+// 此处主要是定义了一些常量。
+
+#define DISK_SIZE 100 * 1024 * 1024
+#define BLOCK_SIZE 1024
+#define BIT_PER_BLOCK BLOCK_SIZE * 8
+#define BLOCK_CNT DISK_SIZE / BLOCK_SIZE
+#define STORE_SIZE_PER_INODE BLOCK_SIZE * 4
+#define INODE_CNT DISK_SIZE / STORE_SIZE_PER_INODE
+#define INODE_SIZE 128

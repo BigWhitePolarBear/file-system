@@ -1,5 +1,5 @@
 #include "fs.h"
-#include "assert.h"
+#include "common.h"
 #include "time.h"
 
 superblock_t sb;
@@ -7,10 +7,22 @@ superblock_t sb;
 int mkfs()
 {
     if (mksb())
+    {
+        printf("格式化超级块失败！\n");
         return -1;
+    }
 
     if (mkbitmap())
+    {
+        printf("格式化位图失败！\n");
         return -1;
+    }
+
+    if (mkroot())
+    {
+        printf("创建根目录失败！\n");
+        return -1;
+    }
 
     return 0;
 }
@@ -22,40 +34,68 @@ int mksb()
     sb.last_wtime = (uint32_t)time(NULL);
     sb.bsize = BLOCK_SIZE;
     sb.bcnt = BLOCK_CNT;
-    sb.free_bcnt = BLOCK_CNT - 1;
     sb.icnt = INODE_CNT;
     sb.free_icnt = INODE_CNT;
-    sb.isize = 128;
-    sb.data_bcnt = BLOCK_CNT - 1 - 13 - INODE_CNT * 128 / 1024;
-    sb.free_data_bcnt = BLOCK_CNT - 1 - 13 - INODE_CNT * 128 / 1024;
+    sb.isize = INODE_SIZE;
 
-    return bwrite(0, &sb);
+    sb.inode_bcnt = (INODE_CNT * INODE_SIZE + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    sb.inode_bitmap_bcnt = (INODE_CNT + BIT_PER_BLOCK - 1) / BIT_PER_BLOCK;
+    // 一个块中有许多位，磁盘中绝大部分块都是数据块，因此
+    // data_bitmap_bcnt 即为块总数除以一个块拥有的比特数。
+    sb.data_bitmap_bcnt = (BLOCK_CNT + BIT_PER_BLOCK - 1) / BIT_PER_BLOCK;
+    sb.data_bcnt = BLOCK_CNT - 1 - sb.inode_bcnt - sb.inode_bitmap_bcnt - sb.data_bitmap_bcnt;
+    sb.free_data_bcnt = BLOCK_CNT - 1 - sb.inode_bcnt - sb.inode_bitmap_bcnt - sb.data_bitmap_bcnt;
+
+    sb.inode_table_start = 1;
+    sb.inode_bitmap_start = sb.inode_table_start + sb.inode_bcnt;
+    sb.data_bitmap_start = sb.inode_bitmap_start + sb.inode_bitmap_bcnt;
+    sb.data_start = sb.data_bitmap_start + sb.data_bitmap_bcnt;
+
+    if (bwrite(0, &sb))
+    {
+        printf("持久化超级块失败！\n");
+        return -1;
+    }
+    return 0;
+}
+
+int mkroot()
+{
+    return 0;
+}
+
+int mkdir(const char *const name)
+{
+    uint32_t ino = get_free_inode();
+    if (ino == 0xffffffff)
+    {
+        printf("获取空闲 inode 失败！\n");
+        return -1;
+    }
+    return 0;
 }
 
 int sb_update_last_wtime()
 {
     sb.last_wtime = (uint32_t)time(NULL);
-
-    return bwrite(0, &sb);
+    if (bwrite(0, &sb))
+    {
+        printf("持久化超级块失败！\n");
+        return -1;
+    }
+    return 0;
 }
 
 int mkbitmap()
 {
-    // 需要 13 个块储存位图。
     bitblock_t bb;
-    for (int i = 1; i <= 13; i++)
+    // 清空 bitmap 。
+    for (int i = sb.inode_bitmap_start; i < sb.data_bitmap_start + sb.data_bitmap_bcnt; i++)
         if (bwrite(i, &bb))
+        {
+            printf("持久化 bitmap 失败！\n");
             return -1;
+        }
 
-    // 第一个位图的低 14 位置 1 。
-    for (int pos = 0; pos < 14; pos++)
-        set_bitblock(&bb, pos);
-    return bwrite(1, &bb);
-}
-
-void set_bitblock(bitblock_t *bb, uint32_t pos)
-{
-    // 偏移为 3 的位运算即为乘 8 或除 8 。
-    assert(pos < BLOCK_SIZE << 3 - 1);
-    bb->bytes[pos >> 3] |= 1 << (pos & 7);
+    return 0;
 }

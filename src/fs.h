@@ -1,16 +1,11 @@
 #pragma once
 
+#include "common.h"
 #include "device.h"
 
-#define BLOCK_CNT DISK_SIZE / BLOCK_SIZE
-#define INODE_CNT DISK_SIZE / (8 * 1024)
-
 // 文件系统布局：
-// | 超级块 | 位图 | inodes | 数据块 |
-// 由于一共有 100k 个块，因此需要 12800B 储存
-// 位图，占用 13 个块。
-// 每个 inode 占用 128 字节的空间，每 8KB 一个 inode，
-// 因此用 15625 个块储存 125000 个inode。
+// | 超级块 | inode Table | inode 位图 | 数据块位图 | 数据块 |
+// 各种参数可以到 common.h 中修改。
 
 typedef struct
 {
@@ -19,14 +14,27 @@ typedef struct
     uint32_t last_wtime;
     uint32_t bsize;
     uint32_t bcnt;
-    uint32_t free_bcnt;
     uint32_t icnt;
     uint32_t free_icnt;
     uint32_t isize;
+
+    uint32_t inode_bcnt;
     uint32_t data_bcnt;
     uint32_t free_data_bcnt;
+    uint32_t inode_bitmap_bcnt;
+    uint32_t data_bitmap_bcnt;
 
-    uint32_t padding[BLOCK_SIZE / 4 - 11];
+    // 各部分的起始块号
+    uint32_t inode_table_start;
+    uint32_t inode_bitmap_start;
+    uint32_t data_bitmap_start;
+    uint32_t data_start;
+
+    // 存储上次分配的 inode 或数据块的编号，下次分配从其后开始查找。
+    uint32_t last_alloc_inode;
+    uint32_t last_alloc_data;
+
+    uint32_t padding[BLOCK_SIZE / 4 - 19];
 } superblock_t;
 
 typedef struct
@@ -48,7 +56,7 @@ typedef struct
     uint32_t double_indirect_blocks[2];
     uint32_t triple_indirect_block;
 
-    uint32_t padding[128 / 4 - 22];
+    uint32_t padding[INODE_SIZE / 4 - 22];
 } inode_t;
 
 typedef struct
@@ -56,10 +64,22 @@ typedef struct
     uint32_t blocks[BLOCK_SIZE / 4];
 } indirectblock_t;
 
+extern superblock_t sb;
+
 int mkfs();
 int mksb();
 int mkbitmap();
+int mkroot();
+int mkdir();
 
 int sb_update_last_wtime();
 
+// 返回 0xffffffff 即为异常。
+uint32_t get_free_inode();
+uint32_t get_free_data();
+
+int set_inode_bitmap(uint32_t pos);
+int set_data_bitmap(uint32_t pos);
+
+uint8_t test_bitblock(bitblock_t *bb, uint32_t pos);
 void set_bitblock(bitblock_t *bb, uint32_t pos);

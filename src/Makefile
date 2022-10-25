@@ -178,6 +178,30 @@ fs.c.s:
 	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/fs.c.s
 .PHONY : fs.c.s
 
+fs_bitmap.o: fs_bitmap.c.o
+.PHONY : fs_bitmap.o
+
+# target to build an object file
+fs_bitmap.c.o:
+	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/fs_bitmap.c.o
+.PHONY : fs_bitmap.c.o
+
+fs_bitmap.i: fs_bitmap.c.i
+.PHONY : fs_bitmap.i
+
+# target to preprocess a source file
+fs_bitmap.c.i:
+	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/fs_bitmap.c.i
+.PHONY : fs_bitmap.c.i
+
+fs_bitmap.s: fs_bitmap.c.s
+.PHONY : fs_bitmap.s
+
+# target to generate assembly for a file
+fs_bitmap.c.s:
+	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/fs_bitmap.c.s
+.PHONY : fs_bitmap.c.s
+
 simdisk.o: simdisk.c.o
 .PHONY : simdisk.o
 
@@ -217,6 +241,9 @@ help:
 	@echo "... fs.o"
 	@echo "... fs.i"
 	@echo "... fs.s"
+	@echo "... fs_bitmap.o"
+	@echo "... fs_bitmap.i"
+	@echo "... fs_bitmap.s"
 	@echo "... simdisk.o"
 	@echo "... simdisk.i"
 	@echo "... simdisk.s"
