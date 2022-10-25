@@ -130,6 +130,20 @@ simdisk/fast:
 	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/build
 .PHONY : simdisk/fast
 
+# Convenience name for target.
+src/CMakeFiles/shell.dir/rule:
+	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 src/CMakeFiles/shell.dir/rule
+.PHONY : src/CMakeFiles/shell.dir/rule
+
+# Convenience name for target.
+shell: src/CMakeFiles/shell.dir/rule
+.PHONY : shell
+
+# fast build rule for target.
+shell/fast:
+	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/shell.dir/build.make src/CMakeFiles/shell.dir/build
+.PHONY : shell/fast
+
 device.o: device.c.o
 .PHONY : device.o
 
@@ -202,6 +216,30 @@ fs_bitmap.c.s:
 	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/fs_bitmap.c.s
 .PHONY : fs_bitmap.c.s
 
+shell.o: shell.c.o
+.PHONY : shell.o
+
+# target to build an object file
+shell.c.o:
+	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/shell.dir/build.make src/CMakeFiles/shell.dir/shell.c.o
+.PHONY : shell.c.o
+
+shell.i: shell.c.i
+.PHONY : shell.i
+
+# target to preprocess a source file
+shell.c.i:
+	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/shell.dir/build.make src/CMakeFiles/shell.dir/shell.c.i
+.PHONY : shell.c.i
+
+shell.s: shell.c.s
+.PHONY : shell.s
+
+# target to generate assembly for a file
+shell.c.s:
+	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/shell.dir/build.make src/CMakeFiles/shell.dir/shell.c.s
+.PHONY : shell.c.s
+
 simdisk.o: simdisk.c.o
 .PHONY : simdisk.o
 
@@ -234,6 +272,7 @@ help:
 	@echo "... depend"
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
+	@echo "... shell"
 	@echo "... simdisk"
 	@echo "... device.o"
 	@echo "... device.i"
@@ -244,6 +283,9 @@ help:
 	@echo "... fs_bitmap.o"
 	@echo "... fs_bitmap.i"
 	@echo "... fs_bitmap.s"
+	@echo "... shell.o"
+	@echo "... shell.i"
+	@echo "... shell.s"
 	@echo "... simdisk.o"
 	@echo "... simdisk.i"
 	@echo "... simdisk.s"

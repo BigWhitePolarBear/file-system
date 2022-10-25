@@ -64,6 +64,11 @@ typedef struct
     uint32_t blocks[BLOCK_SIZE / 4];
 } indirectblock_t;
 
+typedef struct
+{
+    inode_t inodes[INODE_PER_BLOCK];
+} itableblock_t;
+
 extern superblock_t sb;
 
 int mkfs();
@@ -76,17 +81,23 @@ int iread(uint32_t ino, inode_t *const inode);
 int iwrite(uint32_t ino, const inode_t *const inode);
 
 // 超级块的持久化失败时直接退出系统，因此没有返回值。
+// 该函数也会更新超级块的最近修改时间。
 void sb_write();
-// 超级块的持久化失败时直接退出系统，因此没有返回值。
-void sb_update_last_wtime();
 
 // 返回 0xffffffff 即为异常。
 uint32_t get_free_inode();
 // 返回 0xffffffff 即为异常。
 uint32_t get_free_data();
 
+// 修改位图的同时也会修改超级块中的对应数据。
 int set_inode_bitmap(uint32_t pos);
+// 修改位图的同时也会修改超级块中的对应数据。
 int set_data_bitmap(uint32_t pos);
+// 修改位图的同时也会修改超级块中的对应数据。
+int unset_inode_bitmap(uint32_t pos);
+// 修改位图的同时也会修改超级块中的对应数据。
+int unset_data_bitmap(uint32_t pos);
 
 uint8_t test_bitblock(bitblock_t *bb, uint32_t pos);
 void set_bitblock(bitblock_t *bb, uint32_t pos);
+void unset_bitblock(bitblock_t *bb, uint32_t pos);

@@ -129,6 +129,19 @@ simdisk/fast:
 	$(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/build
 .PHONY : simdisk/fast
 
+#=============================================================================
+# Target rules for targets named shell
+
+# Build rule for target.
+shell: cmake_check_build_system
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/Makefile2 shell
+.PHONY : shell
+
+# fast build rule for target.
+shell/fast:
+	$(MAKE) $(MAKESILENT) -f src/CMakeFiles/shell.dir/build.make src/CMakeFiles/shell.dir/build
+.PHONY : shell/fast
+
 # Help Target
 help:
 	@echo "The following are some of the valid targets for this Makefile:"
@@ -137,6 +150,7 @@ help:
 	@echo "... depend"
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
+	@echo "... shell"
 	@echo "... simdisk"
 .PHONY : help
 

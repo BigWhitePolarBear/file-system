@@ -9,8 +9,6 @@ int main()
         return -1;
     }
 
-    printf("%d\n", mkfs());
-
     if (devclose())
     {
         printf("设备关闭出错！\n");

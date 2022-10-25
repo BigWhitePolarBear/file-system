@@ -7,3 +7,11 @@ set(File_System_SRC
 
 add_executable(simdisk
   ${File_System_SRC})
+
+  
+set(Shell_SRC
+  shell.c
+)
+
+add_executable(shell
+  ${Shell_SRC})

@@ -30,13 +30,12 @@ uint32_t get_free_inode()
                 set_bitblock(&bb, ino % BIT_PER_BLOCK);
                 if (bwrite(sb.inode_bitmap_start + ino / BIT_PER_BLOCK, &bb))
                 {
-                    printf("持久化 bitmap 失败！\n");
+                    printf("写入位图失败！\n");
                     return 0xffffffff;
                 }
                 sb.free_icnt--;
                 sb.last_alloc_inode = ino;
                 sb_write();
-                sb_update_last_wtime();
                 return ino;
             }
             if (ino < sb.icnt - 1)
@@ -83,13 +82,12 @@ uint32_t get_free_data()
                 set_bitblock(&bb, bno % BIT_PER_BLOCK);
                 if (bwrite(sb.inode_bitmap_start + bno / BIT_PER_BLOCK, &bb))
                 {
-                    printf("持久化 bitmap 失败！\n");
+                    printf("写入位图失败！\n");
                     return 0xffffffff;
                 }
                 sb.free_data_bcnt--;
                 sb.last_alloc_data = bno;
                 sb_write();
-                sb_update_last_wtime();
                 return bno;
             }
             if (bno < sb.data_bcnt - 1)
@@ -109,8 +107,9 @@ uint32_t get_free_data()
 
 int set_inode_bitmap(uint32_t pos)
 {
-    bitblock_t bb;
+    assert(pos < sb.icnt);
 
+    bitblock_t bb;
     if (bread(sb.inode_bitmap_start + pos / BIT_PER_BLOCK, &bb))
     {
         printf("读取位图失败！\n");
@@ -122,15 +121,17 @@ int set_inode_bitmap(uint32_t pos)
         printf("写入位图失败！\n");
         return -1;
     }
-    sb_update_last_wtime();
+    sb.free_icnt--;
+    sb_write();
 
     return 0;
 }
 
 int set_data_bitmap(uint32_t pos)
 {
-    bitblock_t bb;
+    assert(pos < sb.data_bcnt);
 
+    bitblock_t bb;
     if (bread(sb.data_bitmap_start + pos / BIT_PER_BLOCK, &bb))
     {
         printf("读取位图失败！\n");
@@ -142,7 +143,52 @@ int set_data_bitmap(uint32_t pos)
         printf("写入位图失败！\n");
         return -1;
     }
-    sb_update_last_wtime();
+    sb.free_data_bcnt--;
+    sb_write();
+
+    return 0;
+}
+
+int unset_inode_bitmap(uint32_t pos)
+{
+    assert(pos < sb.icnt);
+
+    bitblock_t bb;
+    if (bread(sb.inode_bitmap_start + pos / BIT_PER_BLOCK, &bb))
+    {
+        printf("读取位图失败！\n");
+        return -1;
+    }
+    unset_bitblock(&bb, pos % BIT_PER_BLOCK);
+    if (bwrite(sb.inode_bitmap_start + pos / BIT_PER_BLOCK, &bb))
+    {
+        printf("写入位图失败！\n");
+        return -1;
+    }
+    sb.free_icnt++;
+    sb_write();
+
+    return 0;
+}
+
+int unset_data_bitmap(uint32_t pos)
+{
+    assert(pos < sb.data_bcnt);
+
+    bitblock_t bb;
+    if (bread(sb.data_bitmap_start + pos / BIT_PER_BLOCK, &bb))
+    {
+        printf("读取位图失败！\n");
+        return -1;
+    }
+    unset_bitblock(&bb, pos % BIT_PER_BLOCK);
+    if (bwrite(sb.data_bitmap_start + pos / BIT_PER_BLOCK, &bb))
+    {
+        printf("写入位图失败！\n");
+        return -1;
+    }
+    sb.free_data_bcnt++;
+    sb_write();
 
     return 0;
 }
@@ -159,4 +205,11 @@ void set_bitblock(bitblock_t *bb, uint32_t pos)
     // 偏移为 3 的位运算即为乘 8 或除 8 。
     assert(pos < BIT_PER_BLOCK);
     bb->bytes[pos >> 3] |= 1 << (pos & 7);
+}
+
+void unset_bitblock(bitblock_t *bb, uint32_t pos)
+{
+    // 偏移为 3 的位运算即为乘 8 或除 8 。
+    assert(pos < BIT_PER_BLOCK);
+    bb->bytes[pos >> 3] ^= 1 << (pos & 7);
 }
