@@ -35,7 +35,7 @@ uint32_t get_free_inode()
                 }
                 sb.free_icnt--;
                 sb.last_alloc_inode = ino;
-                sb_write();
+                sbwrite();
                 return ino;
             }
             if (ino < sb.icnt - 1)
@@ -87,7 +87,7 @@ uint32_t get_free_data()
                 }
                 sb.free_data_bcnt--;
                 sb.last_alloc_data = bno;
-                sb_write();
+                sbwrite();
                 return bno;
             }
             if (bno < sb.data_bcnt - 1)
@@ -122,7 +122,7 @@ int set_inode_bitmap(uint32_t pos)
         return -1;
     }
     sb.free_icnt--;
-    sb_write();
+    sbwrite();
 
     return 0;
 }
@@ -144,7 +144,7 @@ int set_data_bitmap(uint32_t pos)
         return -1;
     }
     sb.free_data_bcnt--;
-    sb_write();
+    sbwrite();
 
     return 0;
 }
@@ -166,7 +166,7 @@ int unset_inode_bitmap(uint32_t pos)
         return -1;
     }
     sb.free_icnt++;
-    sb_write();
+    sbwrite();
 
     return 0;
 }
@@ -188,7 +188,7 @@ int unset_data_bitmap(uint32_t pos)
         return -1;
     }
     sb.free_data_bcnt++;
-    sb_write();
+    sbwrite();
 
     return 0;
 }

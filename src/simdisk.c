@@ -1,3 +1,4 @@
+#include "cmd.h"
 #include "device.h"
 #include "fs.h"
 
@@ -8,6 +9,8 @@ int main()
         printf("设备初始化出错，退出系统！\n");
         return -1;
     }
+
+    handle_msg();
 
     if (devclose())
     {

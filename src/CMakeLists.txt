@@ -1,8 +1,9 @@
 set(File_System_SRC
-  simdisk.c
+  cmd.c
   device.c
   fs.c
   fs_bitmap.c
+  simdisk.c
 )
 
 add_executable(simdisk

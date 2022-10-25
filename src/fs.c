@@ -1,6 +1,7 @@
 #include "fs.h"
 #include "assert.h"
 #include "stdlib.h"
+#include "string.h"
 #include "time.h"
 
 superblock_t sb;
@@ -45,7 +46,7 @@ void mksb()
     sb.data_bitmap_start = sb.inode_bitmap_start + sb.inode_bitmap_bcnt;
     sb.data_start = sb.data_bitmap_start + sb.data_bitmap_bcnt;
 
-    sb_write();
+    sbwrite();
 }
 
 int mkroot()
@@ -53,8 +54,32 @@ int mkroot()
     inode_t inode;
     inode.ino = 0;
     inode.ctime = (uint32_t)time(NULL);
+    inode.wtime = (uint32_t)time(NULL);
     inode.uid = 0;
-    inode.privilege = 0x00000077;
+    inode.privilege = 0x77;
+
+    // 保存自身
+    inode.size = 1;
+    inode.bcnt = 1;
+    uint32_t bno = get_free_data();
+    if (bno == 0xffffffff)
+    {
+        printf("获取空闲数据块失败！\n");
+        return -1;
+    }
+    inode.direct_blocks[0] = bno;
+    dirblock_t db;
+    db.direntries[0].ino = inode.ino;
+    db.direntries[0].ctime = inode.ctime;
+    db.direntries[0].wtime = inode.wtime;
+    db.direntries[0].uid = inode.uid;
+    db.direntries[0].privilege = inode.privilege;
+    strcpy(db.direntries[0].name, "./");
+    if (bwrite(bno, &db))
+    {
+        printf("写入目录数据块失败！\n");
+        return -1;
+    }
     if (iwrite(0, &inode))
     {
         printf("写入根目录 inode 失败！\n");
@@ -87,7 +112,7 @@ int mkbitmap()
             printf("写入位图失败！\n");
             return -1;
         }
-        sb_write();
+        sbwrite();
     }
     return 0;
 }
@@ -123,12 +148,12 @@ int iwrite(uint32_t ino, const inode_t *const inode)
         printf("写入 inode 对应的数据块失败！\n");
         return -1;
     }
-    sb_write();
+    sbwrite();
 
     return 0;
 }
 
-void sb_write()
+void sbwrite()
 {
     sb.last_wtime = (uint32_t)time(NULL);
     if (bwrite(0, &sb))

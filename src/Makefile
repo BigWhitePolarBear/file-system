@@ -144,6 +144,30 @@ shell/fast:
 	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/shell.dir/build.make src/CMakeFiles/shell.dir/build
 .PHONY : shell/fast
 
+cmd.o: cmd.c.o
+.PHONY : cmd.o
+
+# target to build an object file
+cmd.c.o:
+	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/cmd.c.o
+.PHONY : cmd.c.o
+
+cmd.i: cmd.c.i
+.PHONY : cmd.i
+
+# target to preprocess a source file
+cmd.c.i:
+	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/cmd.c.i
+.PHONY : cmd.c.i
+
+cmd.s: cmd.c.s
+.PHONY : cmd.s
+
+# target to generate assembly for a file
+cmd.c.s:
+	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/cmd.c.s
+.PHONY : cmd.c.s
+
 device.o: device.c.o
 .PHONY : device.o
 
@@ -274,6 +298,9 @@ help:
 	@echo "... rebuild_cache"
 	@echo "... shell"
 	@echo "... simdisk"
+	@echo "... cmd.o"
+	@echo "... cmd.i"
+	@echo "... cmd.s"
 	@echo "... device.o"
 	@echo "... device.i"
 	@echo "... device.s"
