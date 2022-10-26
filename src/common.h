@@ -14,12 +14,22 @@
 #define INODE_SIZE 128
 #define INODE_PER_BLOCK BLOCK_SIZE / INODE_SIZE
 #define DIR_ENTRY_SIZE 64
+#define MAX_USER_CNT 16
+#define DIR_ENTRY_PER_BLOCK BLOCK_SIZE / DIR_ENTRY_SIZE
+
+typedef struct
+{
+    uint32_t uid;
+
+    char pwd[16];
+} user_t;
 
 typedef struct
 {
     uint32_t status; // 状态: 0 正常 | 1 异常
     uint32_t fmt_time;
     uint32_t last_wtime;
+    uint32_t ucnt;
     uint32_t bsize;
     uint32_t bcnt;
     uint32_t icnt;
@@ -42,7 +52,9 @@ typedef struct
     uint32_t last_alloc_inode;
     uint32_t last_alloc_data;
 
-    uint32_t padding[BLOCK_SIZE / 4 - 19];
+    user_t users[16];
+
+    uint32_t padding[BLOCK_SIZE / 4 - 100];
 } superblock_t;
 
 typedef struct
@@ -90,7 +102,7 @@ typedef struct
 
 typedef struct
 {
-    direntry_t direntries[BLOCK_SIZE / DIR_ENTRY_SIZE];
+    direntry_t direntries[DIR_ENTRY_PER_BLOCK];
 } dirblock_t;
 
 extern superblock_t sb;

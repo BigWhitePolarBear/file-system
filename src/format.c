@@ -28,6 +28,7 @@ void mksb()
     sb.status = 0;
     sb.fmt_time = (uint32_t)time(NULL);
     sb.last_wtime = (uint32_t)time(NULL);
+    sb.ucnt = 1;
     sb.bsize = BLOCK_SIZE;
     sb.bcnt = BLOCK_CNT;
     sb.icnt = INODE_CNT;
@@ -47,6 +48,9 @@ void mksb()
     sb.data_bitmap_start = sb.inode_bitmap_start + sb.inode_bitmap_bcnt;
     sb.data_start = sb.data_bitmap_start + sb.data_bitmap_bcnt;
 
+    sb.users[0].uid = 0;
+    strcpy(sb.users[0].pwd, "root");
+
     sbwrite();
 }
 
@@ -57,7 +61,7 @@ int mkroot()
     inode.ctime = (uint32_t)time(NULL);
     inode.wtime = (uint32_t)time(NULL);
     inode.uid = 0;
-    inode.privilege = 0x77;
+    inode.privilege = 077;
 
     // 保存自身
     inode.size = 1;
