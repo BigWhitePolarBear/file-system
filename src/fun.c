@@ -158,13 +158,7 @@ void sbwrite()
     }
 }
 
-int login(uint32_t uid, const char *const pwd)
+int login(uint32_t uid, const char pwd[])
 {
-    return 0;
-    for (uint8_t i = 0; i < PWD_LEN; i++)
-        putchar(sb.users[uid].pwd[i]);
-    putchar('\n');
-    for (uint8_t i = 0; i < PWD_LEN; i++)
-        putchar(pwd[i]);
     return strncmp(sb.users[uid].pwd, pwd, PWD_LEN);
 }
