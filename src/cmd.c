@@ -75,7 +75,7 @@ void handle_msg()
             return;
         }
         inmsg = *(inmsg_t *)in_shm;
-        if (inmsg.uid == 0 && strcmp(inmsg.cmd, "shutdown"))
+        if (inmsg.uid == 0 && !strcmp(inmsg.cmd, "shutdown"))
             return;
 
         sem_post(in_ready);
