@@ -138,13 +138,13 @@ void handle_msg()
             {
                 sem_post(in_ready);
                 usleep(SYNC_WAIT);
-                handle_cmd(inmsg.cmd, out_shms[inmsg.uid]);
+                handle_cmd(&inmsg);
             }
         }
     }
 }
 
-void handle_cmd(char cmd[], void *out_shm)
+void handle_cmd(inmsg_t *inmsg)
 {
     return;
 }

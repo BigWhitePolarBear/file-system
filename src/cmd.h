@@ -27,4 +27,4 @@ typedef struct
 
 // 通过输入共享内存获取命令。
 void handle_msg();
-void handle_cmd(char cmd[], void *out_shm);
+void handle_cmd(inmsg_t *inmsg);

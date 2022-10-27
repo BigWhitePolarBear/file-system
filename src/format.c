@@ -80,6 +80,8 @@ int mkroot()
     db.direntries[0].uid = inode.uid;
     db.direntries[0].privilege = inode.privilege;
     strcpy(db.direntries[0].name, "./");
+    db.direntries[1] = db.direntries[0];
+    strcpy(db.direntries[1].name, "../");
     if (bwrite(bno, &db))
     {
         printf("写入目录数据块失败！\n");
