@@ -2,6 +2,7 @@
 #include "device.h"
 #include "fcntl.h"
 #include "format.h"
+#include "fun.h"
 #include "stdio.h"
 #include "termios.h"
 #include "time.h"
@@ -60,11 +61,14 @@ int main()
         return -1;
     }
 
+    sbinit();
+
     if (open_shm())
     {
         printf("开启共享内存失败，退出系统！\n");
         return -1;
     }
+
     handle_msg();
 
     int ret = 0;

@@ -158,6 +158,16 @@ void sbwrite()
     }
 }
 
+void sbinit()
+{
+    if (bread(0, &sb))
+    {
+        printf("读取超级块失败！\n");
+        printf("致命错误，退出系统！\n");
+        exit(-1);
+    }
+}
+
 int login(uint32_t uid, const char pwd[])
 {
     return strncmp(sb.users[uid].pwd, pwd, PWD_LEN);

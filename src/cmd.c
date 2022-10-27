@@ -82,6 +82,8 @@ void handle_msg()
         }
         memcpy(&inmsg, in_shm, IN_MSG_SIZE);
 
+        printf("%s\n", inmsg.cmd);
+
         if (!logined[inmsg.uid] && !strncmp(inmsg.cmd, "LOGIN", 5))
         {
             // 登录信息。
@@ -95,6 +97,7 @@ void handle_msg()
             }
             else
             {
+                logined[inmsg.uid] = 1;
                 strcpy(inmsg.cmd, "SUCCESS");
                 // 使用当前时间戳作为对应输出共享内存名字。
                 sprintf(inmsg.cmd + 7, " %lu", get_timestamp());
@@ -111,17 +114,37 @@ void handle_msg()
                 int fd = shm_open(out_shm_name, O_RDWR, 0662);
                 out_shms[inmsg.uid] = mmap(NULL, OUT_BUF_SIZE, PROT_WRITE, MAP_SHARED, fd, 0);
             }
+            sem_post(in_ready);
+            usleep(SYNC_WAIT);
         }
-        else if (logined[inmsg.uid] && !strncmp(inmsg.cmd, "LOGOUT", 6))
+        else if (logined[inmsg.uid])
         {
-            logined[inmsg.uid] = 0;
-            out_shms[inmsg.uid] = NULL;
+
+            // 登出。
+            if (!strncmp(inmsg.cmd, "LOGOUT", 6))
+            {
+                logined[inmsg.uid] = 0;
+                out_shms[inmsg.uid] = NULL;
+                sem_post(in_ready);
+                usleep(SYNC_WAIT);
+            }
+            else if (inmsg.uid == 0 && !strncmp(inmsg.cmd, "shutdown", 8))
+            {
+                sem_post(in_ready);
+                usleep(SYNC_WAIT);
+                return;
+            }
+            else
+            {
+                sem_post(in_ready);
+                usleep(SYNC_WAIT);
+                handle_cmd(inmsg.cmd, out_shms[inmsg.uid]);
+            }
         }
-
-        sem_post(in_ready);
-        usleep(SYNC_WAIT);
-
-        if (inmsg.uid == 0 && !strcmp(inmsg.cmd, "shutdown"))
-            return;
     }
+}
+
+void handle_cmd(char cmd[], void *out_shm)
+{
+    return;
 }

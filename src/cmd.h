@@ -25,5 +25,6 @@ typedef struct
     char cmd[CMD_LEN];
 } inmsg_t;
 
-// 通过共享内存获取命令。
+// 通过输入共享内存获取命令。
 void handle_msg();
+void handle_cmd(char cmd[], void *out_shm);
