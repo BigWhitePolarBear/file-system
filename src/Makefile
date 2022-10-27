@@ -192,6 +192,30 @@ cmd.c.s:
 	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/cmd.c.s
 .PHONY : cmd.c.s
 
+common.o: common.c.o
+.PHONY : common.o
+
+# target to build an object file
+common.c.o:
+	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/common.c.o
+.PHONY : common.c.o
+
+common.i: common.c.i
+.PHONY : common.i
+
+# target to preprocess a source file
+common.c.i:
+	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/common.c.i
+.PHONY : common.c.i
+
+common.s: common.c.s
+.PHONY : common.s
+
+# target to generate assembly for a file
+common.c.s:
+	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/common.c.s
+.PHONY : common.c.s
+
 device.o: device.c.o
 .PHONY : device.o
 
@@ -328,6 +352,9 @@ help:
 	@echo "... cmd.o"
 	@echo "... cmd.i"
 	@echo "... cmd.s"
+	@echo "... common.o"
+	@echo "... common.i"
+	@echo "... common.s"
 	@echo "... device.o"
 	@echo "... device.i"
 	@echo "... device.s"

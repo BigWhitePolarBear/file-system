@@ -97,7 +97,7 @@ void handle_msg()
             {
                 strcpy(inmsg.cmd, "SUCCESS");
                 // 使用当前时间戳作为对应输出共享内存名字。
-                sprintf(inmsg.cmd + 7, " %d", (int)time(NULL));
+                sprintf(inmsg.cmd + 7, " %lu", get_timestamp());
                 memcpy(in_shm, &inmsg, IN_MSG_SIZE);
 
                 // 等待客户端开启输出共享内存。

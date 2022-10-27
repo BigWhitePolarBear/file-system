@@ -14,4 +14,4 @@ int iwrite(uint32_t ino, const inode_t *const inode);
 // 该函数也会更新超级块的最近修改时间。
 void sbwrite();
 
-int login(uint32_t uid, char *pwd);
+int login(uint32_t uid, const char *const pwd);

@@ -4,6 +4,7 @@
 #include "device.h"
 #include "stdio.h"
 #include "stdlib.h"
+#include "string.h"
 #include "time.h"
 
 uint32_t get_free_inode()
@@ -157,7 +158,13 @@ void sbwrite()
     }
 }
 
-int login(uint32_t uid, char *pwd)
+int login(uint32_t uid, const char *const pwd)
 {
     return 0;
+    for (uint8_t i = 0; i < PWD_LEN; i++)
+        putchar(sb.users[uid].pwd[i]);
+    putchar('\n');
+    for (uint8_t i = 0; i < PWD_LEN; i++)
+        putchar(pwd[i]);
+    return strncmp(sb.users[uid].pwd, pwd, PWD_LEN);
 }

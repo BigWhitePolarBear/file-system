@@ -107,3 +107,5 @@ typedef struct
 } dirblock_t;
 
 extern superblock_t sb;
+
+uint64_t get_timestamp();

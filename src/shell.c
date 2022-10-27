@@ -42,6 +42,7 @@ int main()
         printf("密码错误！\n");
         return -1;
     }
+
     // 开启输出共享内存。
     char out_shm_name[TIMESTAMP_LEN + 8];
     out_shm_name[TIMESTAMP_LEN + 7] = 0;
@@ -98,14 +99,15 @@ int main()
         sem_post(in_mutex);
     }
 
+    int ret = 0;
     // 恢复原始终端状态。
     if (tcsetattr(fd, TCSANOW, &tm_old) < 0)
     {
         printf("恢复原始终端状态失败！\n");
-        return -1;
+        ret = -1;
     }
 
-    // 发送退出登录的消息。
+    // 发送登出消息。
     strcpy(inmsg.cmd, "LOGOUT");
     memcpy(in_shm, &inmsg, IN_MSG_SIZE);
     sem_wait(in_mutex);
@@ -117,10 +119,10 @@ int main()
     if (shm_unlink(out_shm_name))
     {
         printf("断开输出共享内存链接失败！\n");
-        return -1;
+        ret = -1;
     }
 
-    return 0;
+    return ret;
 }
 
 int open_shm()
@@ -128,13 +130,13 @@ int open_shm()
     int fd = shm_open(IN_SHM_NAME, O_RDWR, 0666);
     if (fd == -1)
     {
-        printf("开启共享内存链接失败！\n");
+        printf("开启输入共享内存链接失败！\n");
         return -1;
     }
     in_shm = mmap(NULL, IN_MSG_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (*(int *)in_shm == -1)
     {
-        printf("映射共享内存失败！\n");
+        printf("映射输入共享内存失败！\n");
         return -1;
     }
 
@@ -169,9 +171,6 @@ int handle_input(inmsg_t *inmsg)
         c = getchar();
         switch (c)
         {
-        case -1: // 没有输入
-            continue;
-
         case 27: // ↑ ↓ ← →
             getchar();
             c = getchar();

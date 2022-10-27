@@ -1,6 +1,7 @@
 set(File_System_SRC
   bitmap.c
   cmd.c
+  common.c
   device.c
   format.c
   fun.c
