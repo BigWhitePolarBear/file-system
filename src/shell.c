@@ -1,4 +1,5 @@
 #include "shell.h"
+#include "common.h"
 #include "fcntl.h"
 #include "stdio.h"
 #include "stdlib.h"
@@ -10,11 +11,11 @@
 
 int main()
 {
-    // if (open_shm())
-    // {
-    //     printf("开启共享内存失败，退出系统！\n");
-    //     return -1;
-    // }
+    if (open_shm())
+    {
+        printf("开启共享内存失败，退出系统！\n");
+        return -1;
+    }
 
     inmsg_t inmsg;
     printf("请输入用户 id ：");
@@ -24,9 +25,38 @@ int main()
         printf("非法用户 id ！\n");
         return -1;
     }
+    printf("请输入用户密码：");
+    char pwd[PWD_LEN];
+    scanf("%s", pwd);
+    strcpy(inmsg.cmd, "LOGIN ");
+    strcpy(inmsg.cmd + 6, pwd);
+    // 先发送 id 和密码完成登录。
+    memcpy(in_shm, &inmsg, IN_MSG_SIZE);
+    sem_wait(in_mutex);
+    sem_post(in_ready);
+    usleep(SYNC_WAIT);
+    sem_wait(in_ready);
+    memcpy(&inmsg, in_shm, IN_MSG_SIZE);
+    if (strncmp(inmsg.cmd, "SUCCESS", 7))
+    {
+        printf("密码错误！\n");
+        return -1;
+    }
+    // 开启输出共享内存。
+    char out_shm_name[TIMESTAMP_LEN + 8];
+    out_shm_name[TIMESTAMP_LEN + 7] = 0;
+    strcpy(out_shm_name, "fs_out_");
+    strncpy(out_shm_name + 7, inmsg.cmd + 8, TIMESTAMP_LEN);
+    int fd = shm_open(out_shm_name, O_CREAT | O_RDWR, 0662);
+    ftruncate(fd, OUT_BUF_SIZE);
+    out_shm = mmap(NULL, OUT_BUF_SIZE, PROT_READ, MAP_SHARED, fd, 0);
+    sem_post(in_ready);
+    usleep(SYNC_WAIT);
+    sem_wait(in_ready);
+    sem_post(in_mutex);
 
     struct termios tm, tm_old;
-    int fd = 0;
+    fd = 0;
     // 保存当前终端设置
     if (tcgetattr(fd, &tm) < 0)
     {
@@ -43,11 +73,8 @@ int main()
 
     // 初始化终端缓冲
     head = malloc(sizeof(inbuf_t));
-    memset(head->cmd, 0, CMD_LEN);
     tail = malloc(sizeof(inbuf_t));
-    memset(tail->cmd, 0, CMD_LEN);
     cur = malloc(sizeof(inbuf_t));
-    memset(cur->cmd, 0, CMD_LEN);
     head->nxt = cur;
     tail->pre = cur;
     cur->pre = head;
@@ -63,21 +90,33 @@ int main()
         printf("%s\r\n", inmsg.cmd);
         if (!strcmp(inmsg.cmd, "q") || !strcmp(inmsg.cmd, "exit") || !strcmp(inmsg.cmd, "quit"))
             break;
+        memcpy(in_shm, &inmsg, IN_MSG_SIZE);
+        sem_wait(in_mutex);
+        sem_post(in_ready);
+        usleep(SYNC_WAIT);
+        sem_wait(in_ready);
+        sem_post(in_mutex);
     }
 
-    // char c;
-    // scanf("%c", &c);
-    // sem_wait(in_mutex);
-    // memset(in_shm, c, IN_MSG_SIZE);
-    // sem_post(in_ready);
-    // usleep(SYNC_WAIT);
-    // sem_wait(in_ready);
-    // sem_post(in_mutex);
-
-    // 恢复原始终端状态.
+    // 恢复原始终端状态。
     if (tcsetattr(fd, TCSANOW, &tm_old) < 0)
     {
         printf("恢复原始终端状态失败！\n");
+        return -1;
+    }
+
+    // 发送退出登录的消息。
+    strcpy(inmsg.cmd, "LOGOUT");
+    memcpy(in_shm, &inmsg, IN_MSG_SIZE);
+    sem_wait(in_mutex);
+    sem_post(in_ready);
+    usleep(SYNC_WAIT);
+    sem_wait(in_ready);
+    sem_post(in_mutex);
+
+    if (shm_unlink(out_shm_name))
+    {
+        printf("断开输出共享内存链接失败！\n");
         return -1;
     }
 
@@ -92,7 +131,7 @@ int open_shm()
         printf("开启共享内存链接失败！\n");
         return -1;
     }
-    in_shm = mmap(NULL, IN_MSG_SIZE, PROT_WRITE, MAP_SHARED, fd, 0);
+    in_shm = mmap(NULL, IN_MSG_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (*(int *)in_shm == -1)
     {
         printf("映射共享内存失败！\n");
@@ -130,7 +169,7 @@ int handle_input(inmsg_t *inmsg)
         c = getchar();
         switch (c)
         {
-        case -1: // no input
+        case -1: // 没有输入
             continue;
 
         case 27: // ↑ ↓ ← →
@@ -191,7 +230,6 @@ int handle_input(inmsg_t *inmsg)
         return 0;
     strcpy(inmsg->cmd, cur->cmd);
     tail->nxt = malloc(sizeof(inbuf_t));
-    memset(tail->nxt->cmd, 0, CMD_LEN);
     cur = tail;
     tail = tail->nxt;
     tail->pre = cur;

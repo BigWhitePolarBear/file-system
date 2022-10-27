@@ -15,13 +15,14 @@
 #define INODE_PER_BLOCK BLOCK_SIZE / INODE_SIZE
 #define DIR_ENTRY_SIZE 64
 #define MAX_USER_CNT 16
+#define PWD_LEN 16
 #define DIR_ENTRY_PER_BLOCK BLOCK_SIZE / DIR_ENTRY_SIZE
 
 typedef struct
 {
     uint32_t uid;
 
-    char pwd[16];
+    char pwd[PWD_LEN];
 } user_t;
 
 typedef struct
@@ -52,7 +53,7 @@ typedef struct
     uint32_t last_alloc_inode;
     uint32_t last_alloc_data;
 
-    user_t users[16];
+    user_t users[MAX_USER_CNT];
 
     uint32_t padding[BLOCK_SIZE / 4 - 100];
 } superblock_t;

@@ -13,3 +13,5 @@ int iwrite(uint32_t ino, const inode_t *const inode);
 // 超级块的持久化失败时直接退出系统，因此没有返回值。
 // 该函数也会更新超级块的最近修改时间。
 void sbwrite();
+
+int login(uint32_t uid, char *pwd);

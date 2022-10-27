@@ -1,10 +1,13 @@
 #include "cmd.h"
+#include "common.h"
 #include "fcntl.h"
+#include "fun.h"
 #include "semaphore.h"
 #include "stdio.h"
 #include "string.h"
 #include "sys/mman.h"
 #include "sys/stat.h"
+#include "time.h"
 #include "unistd.h"
 
 void *in_shm;
@@ -12,19 +15,22 @@ void *in_shm;
 sem_t *in_mutex;
 sem_t *in_ready;
 
+uint8_t logined[MAX_USER_CNT];
+void *out_shms[MAX_USER_CNT];
+
 int open_shm()
 {
     int fd = shm_open(IN_SHM_NAME, O_CREAT | O_RDWR, 0666);
     if (fd == -1)
     {
-        printf("开启共享内存链接失败！\n");
+        printf("开启输入共享内存链接失败！\n");
         return -1;
     }
     ftruncate(fd, IN_MSG_SIZE);
-    in_shm = mmap(NULL, IN_MSG_SIZE, PROT_READ, MAP_SHARED, fd, 0);
+    in_shm = mmap(NULL, IN_MSG_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
     if (*(int *)in_shm == -1)
     {
-        printf("映射共享内存失败！\n");
+        printf("映射输入共享内存失败！\n");
         return -1;
     }
 
@@ -48,7 +54,7 @@ int unlink_shm()
 {
     if (shm_unlink(IN_SHM_NAME))
     {
-        printf("断开共享内存链接失败！\n");
+        printf("断开输入共享内存链接失败！\n");
         return -1;
     }
     if (sem_unlink(IN_SEM_MUTEX_NAME))
@@ -71,14 +77,51 @@ void handle_msg()
     {
         if (sem_wait(in_ready))
         {
-            printf("获取共享内存互斥信号量失败！\n");
+            printf("获取输入通知信号量失败！\n");
             return;
         }
-        inmsg = *(inmsg_t *)in_shm;
-        if (inmsg.uid == 0 && !strcmp(inmsg.cmd, "shutdown"))
-            return;
+        memcpy(&inmsg, in_shm, IN_MSG_SIZE);
+
+        if (!logined[inmsg.uid] && !strncmp(inmsg.cmd, "LOGIN", 5))
+        {
+            // 登录信息。
+            char pwd[PWD_LEN];
+            strncpy(pwd, inmsg.cmd + 6, PWD_LEN);
+            if (login(inmsg.uid, pwd))
+            {
+                // 密码错误。
+                inmsg.uid = 0xffffffff;
+                memcpy(in_shm, &inmsg, IN_MSG_SIZE);
+            }
+            else
+            {
+                strcpy(inmsg.cmd, "SUCCESS");
+                // 使用当前时间戳作为对应输出共享内存名字。
+                sprintf(inmsg.cmd + 7, " %d", (int)time(NULL));
+                memcpy(in_shm, &inmsg, IN_MSG_SIZE);
+
+                // 等待客户端开启输出共享内存。
+                sem_post(in_ready);
+                usleep(SYNC_WAIT);
+                sem_wait(in_ready);
+                char out_shm_name[TIMESTAMP_LEN + 8];
+                out_shm_name[TIMESTAMP_LEN + 7] = 0;
+                strcpy(out_shm_name, "fs_out_");
+                strncpy(out_shm_name + 7, inmsg.cmd + 8, TIMESTAMP_LEN);
+                int fd = shm_open(out_shm_name, O_RDWR, 0662);
+                out_shms[inmsg.uid] = mmap(NULL, OUT_BUF_SIZE, PROT_WRITE, MAP_SHARED, fd, 0);
+            }
+        }
+        else if (logined[inmsg.uid] && !strncmp(inmsg.cmd, "LOGOUT", 6))
+        {
+            logined[inmsg.uid] = 0;
+            out_shms[inmsg.uid] = NULL;
+        }
 
         sem_post(in_ready);
         usleep(SYNC_WAIT);
+
+        if (inmsg.uid == 0 && !strcmp(inmsg.cmd, "shutdown"))
+            return;
     }
 }

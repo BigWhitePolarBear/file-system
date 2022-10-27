@@ -156,3 +156,8 @@ void sbwrite()
         exit(-1);
     }
 }
+
+int login(uint32_t uid, char *pwd)
+{
+    return 0;
+}

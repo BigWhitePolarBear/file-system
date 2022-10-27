@@ -5,7 +5,7 @@
 
 #define MAX_CMD_LINE 32
 
-uint8_t cmdline_cnt = 0;
+uint8_t cmdline_cnt;
 
 struct inbuf_t
 {
@@ -20,6 +20,7 @@ typedef struct inbuf_t inbuf_t;
 inbuf_t *head, *tail, *cur;
 
 void *in_shm;
+void *out_shm;
 
 sem_t *in_mutex;
 sem_t *in_ready;
@@ -28,3 +29,5 @@ sem_t *in_ready;
 int open_shm();
 
 int handle_input(inmsg_t *inmsg);
+
+int login(uint32_t uid, char *pwd);
