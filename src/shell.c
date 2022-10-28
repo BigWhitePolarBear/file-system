@@ -50,8 +50,22 @@ int main()
     strcpy(out_shm_name, "fs_out_");
     strncpy(out_shm_name + 7, inmsg.cmd + 8, TIMESTAMP_LEN);
     int fd = shm_open(out_shm_name, O_CREAT | O_RDWR, 0662);
-    ftruncate(fd, OUT_BUF_SIZE);
+    if (fd == -1)
+    {
+        printf("开启输出共享内存链接失败！\n");
+        return -1;
+    }
+    if (ftruncate(fd, OUT_BUF_SIZE))
+    {
+        printf("为输出共享内存分配空间失败！\n");
+        return -1;
+    }
     out_shm = mmap(NULL, OUT_BUF_SIZE, PROT_READ, MAP_SHARED, fd, 0);
+    if (*(int *)out_shm == -1)
+    {
+        printf("映射输出共享内存失败！\n");
+        return -1;
+    }
 
     char out_sem_ready_name[TIMESTAMP_LEN + 14];
     out_sem_ready_name[TIMESTAMP_LEN + 13] = 0;
@@ -66,7 +80,22 @@ int main()
     // 通知后端
     sem_post(in_ready);
     usleep(SYNC_WAIT);
+
+    // 检查后端是否也成功开启信号量
     sem_wait(in_ready);
+    memcpy(&inmsg, in_shm, IN_MSG_SIZE);
+    if (strncmp(inmsg.cmd, "SUCCESS AGAIN", 13))
+    {
+        printf("后端初始化输出共享内存或信号量时出错！\n");
+
+        if (shm_unlink(out_shm_name))
+            printf("断开输出共享内存链接失败！\n");
+        if (sem_unlink(out_sem_ready_name))
+            printf("断开输出通知信号量链接失败！\n");
+
+        sem_post(in_mutex);
+        return -1;
+    }
     sem_post(in_mutex);
 
     struct termios tm, tm_old;
@@ -101,6 +130,7 @@ int main()
     getchar();
     while (1)
     {
+        // 获取输入并传输到后端。
         printf(">> ");
         if (handle_input(&inmsg) == 0)
             continue;
@@ -113,6 +143,13 @@ int main()
         usleep(SYNC_WAIT);
         sem_wait(in_ready);
         sem_post(in_mutex);
+
+        // 等待后端返回输出。
+        sem_wait(out_ready);
+        if (!strncmp(out_shm, "ERROR", 5))
+            printf("ERROR\r\n");
+        else
+            printf("%s\r\n", (char *)out_shm);
     }
 
     int ret = 0;

@@ -16,3 +16,5 @@ void sbwrite();
 void sbinit();
 
 int login(uint32_t uid, const char pwd[]);
+
+uint16_t info(void *const out_shm);

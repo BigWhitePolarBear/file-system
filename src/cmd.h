@@ -11,7 +11,7 @@
 #define SYNC_WAIT 5
 #define MAX_USER_CNT 16
 #define TIMESTAMP_LEN 13
-#define OUT_BUF_SIZE 512
+#define OUT_BUF_SIZE 1024
 
 // 开辟输入命令的共享内存。
 int open_shm();

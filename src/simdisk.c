@@ -68,6 +68,7 @@ int main()
         return -1;
     }
 
+    printf("启动系统完毕！\r\n");
     handle_msg();
 
     int ret = 0;
