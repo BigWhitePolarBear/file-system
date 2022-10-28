@@ -4,6 +4,7 @@
 #include "semaphore.h"
 
 #define MAX_CMD_LINE 32
+#define OUT_SEM_PERM (S_IRWXU | S_IRWXG | S_IRWXO)
 
 uint8_t cmdline_cnt;
 
@@ -24,10 +25,9 @@ void *out_shm;
 
 sem_t *in_mutex;
 sem_t *in_ready;
+sem_t *out_ready;
 
 // 开辟输入命令的共享内存。
 int open_shm();
 
 int handle_input(inmsg_t *inmsg);
-
-int login(uint32_t uid, char *pwd);

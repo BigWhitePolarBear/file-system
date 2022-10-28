@@ -43,7 +43,7 @@ int main()
         return -1;
     }
 
-    // 开启输出共享内存。
+    // 开启输出共享内存和输出通知信号量。
     char out_shm_name[TIMESTAMP_LEN + 8];
     out_shm_name[TIMESTAMP_LEN + 7] = 0;
     strcpy(out_shm_name, "fs_out_");
@@ -51,6 +51,18 @@ int main()
     int fd = shm_open(out_shm_name, O_CREAT | O_RDWR, 0662);
     ftruncate(fd, OUT_BUF_SIZE);
     out_shm = mmap(NULL, OUT_BUF_SIZE, PROT_READ, MAP_SHARED, fd, 0);
+
+    char out_sem_ready_name[TIMESTAMP_LEN + 14];
+    out_sem_ready_name[TIMESTAMP_LEN + 13] = 0;
+    strcpy(out_sem_ready_name, "fs_out_ready_");
+    strncpy(out_sem_ready_name + 13, inmsg.cmd + 8, TIMESTAMP_LEN);
+    out_ready = sem_open(out_sem_ready_name, O_CREAT | O_EXCL, OUT_SEM_PERM, 0);
+    if (out_ready == SEM_FAILED)
+    {
+        printf("开启输出通知信号量失败！\n");
+        return -1;
+    }
+    // 通知后端
     sem_post(in_ready);
     usleep(SYNC_WAIT);
     sem_wait(in_ready);
@@ -121,7 +133,11 @@ int main()
         printf("断开输出共享内存链接失败！\n");
         ret = -1;
     }
-
+    if (sem_unlink(out_sem_ready_name))
+    {
+        printf("断开输出通知信号量链接失败！\n");
+        ret = -1;
+    }
     return ret;
 }
 

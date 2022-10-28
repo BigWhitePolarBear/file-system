@@ -17,6 +17,7 @@ sem_t *in_ready;
 
 uint8_t logined[MAX_USER_CNT];
 void *out_shms[MAX_USER_CNT];
+sem_t *out_readys[MAX_USER_CNT];
 
 int open_shm()
 {
@@ -103,7 +104,7 @@ void handle_msg()
                 sprintf(inmsg.cmd + 7, " %lu", get_timestamp());
                 memcpy(in_shm, &inmsg, IN_MSG_SIZE);
 
-                // 等待客户端开启输出共享内存。
+                // 等待客户端开启输出共享内存和输出通知信号量。
                 sem_post(in_ready);
                 usleep(SYNC_WAIT);
                 sem_wait(in_ready);
@@ -113,6 +114,12 @@ void handle_msg()
                 strncpy(out_shm_name + 7, inmsg.cmd + 8, TIMESTAMP_LEN);
                 int fd = shm_open(out_shm_name, O_RDWR, 0662);
                 out_shms[inmsg.uid] = mmap(NULL, OUT_BUF_SIZE, PROT_WRITE, MAP_SHARED, fd, 0);
+
+                char out_sem_ready_name[TIMESTAMP_LEN + 14];
+                out_sem_ready_name[TIMESTAMP_LEN + 13] = 0;
+                strcpy(out_sem_ready_name, "fs_out_ready_");
+                strncpy(out_sem_ready_name + 13, inmsg.cmd + 8, TIMESTAMP_LEN);
+                out_readys[inmsg.uid] = sem_open(out_sem_ready_name, O_EXCL);
             }
             sem_post(in_ready);
             usleep(SYNC_WAIT);
