@@ -31,8 +31,8 @@ int main()
     strcpy(inmsg.cmd, "LOGIN ");
     strcpy(inmsg.cmd + 6, pwd);
     // 先发送 id 和密码完成登录。
-    memcpy(in_shm, &inmsg, IN_MSG_SIZE);
     sem_wait(in_mutex);
+    memcpy(in_shm, &inmsg, IN_MSG_SIZE);
     sem_post(in_ready);
     usleep(SYNC_WAIT);
     sem_wait(in_ready);
@@ -40,7 +40,8 @@ int main()
     if (strncmp(inmsg.cmd, "SUCCESS", 7))
     {
         printf("密码错误！\n");
-        return 0;
+        sem_post(in_mutex);
+        return -1;
     }
 
     // 开启输出共享内存和输出通知信号量。
@@ -106,8 +107,8 @@ int main()
         printf("%s\r\n", inmsg.cmd);
         if (!strcmp(inmsg.cmd, "q") || !strcmp(inmsg.cmd, "exit") || !strcmp(inmsg.cmd, "quit"))
             break;
-        memcpy(in_shm, &inmsg, IN_MSG_SIZE);
         sem_wait(in_mutex);
+        memcpy(in_shm, &inmsg, IN_MSG_SIZE);
         sem_post(in_ready);
         usleep(SYNC_WAIT);
         sem_wait(in_ready);
@@ -124,8 +125,8 @@ int main()
 
     // 发送登出消息。
     strcpy(inmsg.cmd, "LOGOUT");
-    memcpy(in_shm, &inmsg, IN_MSG_SIZE);
     sem_wait(in_mutex);
+    memcpy(in_shm, &inmsg, IN_MSG_SIZE);
     sem_post(in_ready);
     usleep(SYNC_WAIT);
     sem_wait(in_ready);

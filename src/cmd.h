@@ -8,7 +8,7 @@
 #define IN_MSG_SIZE 128
 #define CMD_LEN IN_MSG_SIZE - 4
 #define IN_SEM_PERM (S_IRWXU | S_IRWXG | S_IRWXO) // 所有用户进程都可以访问输入相关的信号量。
-#define SYNC_WAIT 10
+#define SYNC_WAIT 5
 #define MAX_USER_CNT 16
 #define TIMESTAMP_LEN 13
 #define OUT_BUF_SIZE 512
