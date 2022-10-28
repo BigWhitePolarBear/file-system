@@ -40,7 +40,7 @@ int main()
     if (strncmp(inmsg.cmd, "SUCCESS", 7))
     {
         printf("密码错误！\n");
-        return -1;
+        return 0;
     }
 
     // 开启输出共享内存和输出通知信号量。
@@ -86,8 +86,11 @@ int main()
 
     // 初始化终端缓冲
     head = malloc(sizeof(inbuf_t));
+    memset(head, 0, sizeof(inbuf_t));
     tail = malloc(sizeof(inbuf_t));
+    memset(tail, 0, sizeof(inbuf_t));
     cur = malloc(sizeof(inbuf_t));
+    memset(cur, 0, sizeof(inbuf_t));
     head->nxt = cur;
     tail->pre = cur;
     cur->pre = head;
@@ -245,6 +248,7 @@ int handle_input(inmsg_t *inmsg)
         return 0;
     strcpy(inmsg->cmd, cur->cmd);
     tail->nxt = malloc(sizeof(inbuf_t));
+    memset(tail->nxt, 0, sizeof(inbuf_t));
     cur = tail;
     tail = tail->nxt;
     tail->pre = cur;
