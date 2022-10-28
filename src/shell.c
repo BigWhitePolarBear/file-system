@@ -178,7 +178,7 @@ int open_shm()
 
 int handle_input(inmsg_t *inmsg)
 {
-    inmsg->cmd[0] = '\0';
+    memset(inmsg->cmd, 0, CMD_LEN);
     char c;
     inbuf_t *p = cur;
     while (1)
@@ -208,6 +208,7 @@ int handle_input(inmsg_t *inmsg)
                 p = p->pre;
                 strcpy(cur->cmd, p->cmd);
                 cur->len = p->len;
+                memset(cur->cmd + cur->len, 0, CMD_LEN - cur->len);
                 printf("%s", cur->cmd);
                 continue;
             case 66: // ↓
@@ -222,6 +223,7 @@ int handle_input(inmsg_t *inmsg)
                 p = p->nxt;
                 strcpy(cur->cmd, p->cmd);
                 cur->len = p->len;
+                memset(cur->cmd + cur->len, 0, CMD_LEN - cur->len);
                 printf("%s", cur->cmd);
                 continue;
             }
@@ -234,7 +236,7 @@ int handle_input(inmsg_t *inmsg)
         case '\b': // 退格
             if (cur->len == 0)
                 continue;
-            cur->cmd[--cur->len] = '\0';
+            cur->cmd[--(cur->len)] = '\0';
             printf("\b \b");
             break;
 
@@ -242,11 +244,12 @@ int handle_input(inmsg_t *inmsg)
             if (cur->len == CMD_LEN - 1)
                 continue;
             putchar(c);
-            cur->cmd[cur->len++] = c;
+            cur->cmd[(cur->len)++] = c;
         }
     }
     if (cur->len == 0)
         return 0;
+
     strcpy(inmsg->cmd, cur->cmd);
     tail->nxt = malloc(sizeof(inbuf_t));
     memset(tail->nxt, 0, sizeof(inbuf_t));
