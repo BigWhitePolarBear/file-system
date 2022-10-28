@@ -7,6 +7,7 @@
 #include "string.h"
 #include "sys/mman.h"
 #include "sys/stat.h"
+#include "time.h"
 #include "unistd.h"
 
 void *in_shm;
@@ -114,14 +115,16 @@ void handle_msg()
                 {
                     printf("连接输出共享内存失败！\n");
                     sem_post(in_ready);
-                    return;
+                    usleep(SYNC_WAIT_LONG);
+                    continue;
                 }
                 out_shms[inmsg.uid] = mmap(NULL, OUT_BUF_SIZE, PROT_WRITE, MAP_SHARED, fd, 0);
                 if (*(int *)out_shms[inmsg.uid] == -1)
                 {
                     printf("映射输出共享内存失败！\n");
                     sem_post(in_ready);
-                    return;
+                    usleep(SYNC_WAIT_LONG);
+                    continue;
                 }
                 memset(out_shms[inmsg.uid], 0, OUT_BUF_SIZE);
 
@@ -132,9 +135,11 @@ void handle_msg()
                 out_readys[inmsg.uid] = sem_open(out_sem_ready_name, O_EXCL);
                 if (out_readys[inmsg.uid] == SEM_FAILED)
                 {
+                    out_shms[inmsg.uid] = NULL;
                     printf("连接输出通知信号量失败！\n");
                     sem_post(in_ready);
-                    return;
+                    usleep(SYNC_WAIT_LONG);
+                    continue;
                 }
 
                 // 再次通知 shell
@@ -143,7 +148,7 @@ void handle_msg()
                 logined[inmsg.uid] = 1;
             }
             sem_post(in_ready);
-            usleep(SYNC_WAIT);
+            usleep(SYNC_WAIT_LONG);
         }
         else if (logined[inmsg.uid])
         {
@@ -153,20 +158,20 @@ void handle_msg()
                 logined[inmsg.uid] = 0;
                 out_shms[inmsg.uid] = NULL;
                 sem_post(in_ready);
-                usleep(SYNC_WAIT);
+                usleep(SYNC_WAIT_LONG);
             }
             else if (inmsg.uid == 0 && !strncmp(inmsg.cmd, "shutdown", 8))
             {
                 memset(out_shms[inmsg.uid], 0, last_out_idx[inmsg.uid]);
                 sem_post(in_ready);
-                usleep(SYNC_WAIT);
+                usleep(SYNC_WAIT_LONG);
                 sem_post(out_readys[inmsg.uid]);
                 return;
             }
             else
             {
                 sem_post(in_ready);
-                usleep(SYNC_WAIT);
+                usleep(SYNC_WAIT_LONG);
                 handle_cmd(&inmsg);
                 sem_post(out_readys[inmsg.uid]);
             }
