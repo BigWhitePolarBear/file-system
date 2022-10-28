@@ -5,7 +5,6 @@
 #include "fun.h"
 #include "stdio.h"
 #include "termios.h"
-#include "time.h"
 
 int main()
 {

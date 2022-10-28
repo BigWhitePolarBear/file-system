@@ -7,7 +7,6 @@
 #include "string.h"
 #include "sys/mman.h"
 #include "sys/stat.h"
-#include "time.h"
 #include "unistd.h"
 
 void *in_shm;
@@ -90,13 +89,7 @@ void handle_msg()
             // 登录信息。
             char pwd[PWD_LEN];
             strncpy(pwd, inmsg.cmd + 6, PWD_LEN);
-            if (login(inmsg.uid, pwd))
-            {
-                // 密码错误。
-                inmsg.uid = 0xffffffff;
-                memcpy(in_shm, &inmsg, IN_MSG_SIZE);
-            }
-            else
+            if (login(inmsg.uid, pwd)) // 密码正确
             {
                 logined[inmsg.uid] = 1;
                 strcpy(inmsg.cmd, "SUCCESS");

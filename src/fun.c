@@ -170,5 +170,5 @@ void sbinit()
 
 int login(uint32_t uid, const char pwd[])
 {
-    return strncmp(sb.users[uid].pwd, pwd, PWD_LEN);
+    return !strncmp(sb.users[uid].pwd, pwd, PWD_LEN);
 }
