@@ -2,17 +2,16 @@
 
 #include "stdint.h"
 
-#define IN_SHM_NAME "fs_in"
-#define IN_SEM_MUTEX_NAME "fs_in_mutex"
-#define IN_SEM_READY_NAME "fs_in_ready"
-#define IN_MSG_SIZE 128
-#define CMD_LEN IN_MSG_SIZE - 4
-#define SYNC_WAIT 5
-#define SYNC_WAIT_LONG 20
+#define SHM_NAME "fs"
+#define SEM_MUTEX_NAME "fs_mutex"
+#define SEM_IN_READY_NAME "fs_in_ready"
+#define SEM_OUT_READY_NAME "fs_out_ready"
+#define SHM_SIZE 128
+#define CMD_LEN SHM_SIZE - 4
 #define IN_SEM_PERM (S_IRWXU | S_IRWXG | S_IRWXO)
 #define MAX_USER_CNT 16
 #define TIMESTAMP_LEN 13
-#define OUT_BUF_SIZE 1024
+#define SPEC_SHM_SIZE 1024
 
 // 开辟输入命令的共享内存。
 int open_shm();
@@ -24,8 +23,8 @@ typedef struct
     uint32_t uid;
 
     char cmd[CMD_LEN];
-} inmsg_t;
+} msg_t;
 
 // 通过输入共享内存获取命令。
 void handle_msg();
-void handle_cmd(inmsg_t *inmsg);
+void handle_cmd(msg_t *msg);

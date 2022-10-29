@@ -174,31 +174,31 @@ int login(uint32_t uid, const char pwd[])
     return !strncmp(sb.users[uid].pwd, pwd, PWD_LEN);
 }
 
-uint16_t info(void *const out_shm)
+uint16_t info(void *const spec_shm)
 {
     static const char time_format[] = "%a %b %d %Y";
     uint16_t i = 0;
-    strcpy(out_shm, "系统状态：");
+    strcpy(spec_shm, "系统状态：");
     i += 15;
     if (sb.status)
-        strcpy(out_shm + i, "异常\r\n");
+        strcpy(spec_shm + i, "异常\r\n");
     else
-        strcpy(out_shm + i, "正常\r\n");
+        strcpy(spec_shm + i, "正常\r\n");
     i += 8;
-    strcpy(out_shm + i, "格式化时间：");
+    strcpy(spec_shm + i, "格式化时间：");
     i += 18;
-    memset(out_shm + i, ' ', 16);
+    memset(spec_shm + i, ' ', 16);
     struct tm lt;
     time_t t = sb.fmt_time;
     localtime_r(&t, &lt);
-    if (!strftime(out_shm + i, 16, time_format, &lt))
+    if (!strftime(spec_shm + i, 16, time_format, &lt))
     {
-        memset(out_shm, 0, i);
-        strcpy(out_shm, "ERROR");
+        memset(spec_shm, 0, i);
+        strcpy(spec_shm, "ERROR");
         return 5;
     }
     i += 16;
-    strcpy(out_shm + i, "\r\n");
+    strcpy(spec_shm + i, "\r\n");
     i += 2;
 
     return i;

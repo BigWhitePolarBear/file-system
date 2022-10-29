@@ -10,46 +10,53 @@
 #include "time.h"
 #include "unistd.h"
 
-void *in_shm;
+void *shm;
 
-sem_t *in_mutex;
+sem_t *mutex;
 sem_t *in_ready;
+sem_t *out_ready;
 
 uint8_t logined[MAX_USER_CNT];
-void *out_shms[MAX_USER_CNT];
-uint16_t last_out_idx[MAX_USER_CNT];
-sem_t *out_readys[MAX_USER_CNT];
+void *spec_shms[MAX_USER_CNT];
+uint16_t last_spec_shm_pos[MAX_USER_CNT];
+sem_t *spec_out_readys[MAX_USER_CNT];
 
 int open_shm()
 {
-    int fd = shm_open(IN_SHM_NAME, O_CREAT | O_RDWR, 0666);
+    int fd = shm_open(SHM_NAME, O_CREAT | O_RDWR, 0666);
     if (fd == -1)
     {
-        printf("开启输入共享内存链接失败！\n");
+        printf("开启共享内存链接失败！\n");
         return -1;
     }
-    if (ftruncate(fd, IN_MSG_SIZE))
+    if (ftruncate(fd, SHM_SIZE))
     {
-        printf("为输入共享内存分配空间失败！\n");
+        printf("为共享内存分配空间失败！\n");
         return -1;
     }
-    in_shm = mmap(NULL, IN_MSG_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
-    if (*(int *)in_shm == -1)
+    shm = mmap(NULL, SHM_SIZE, PROT_READ | PROT_WRITE, MAP_SHARED, fd, 0);
+    if (*(int *)shm == -1)
     {
-        printf("映射输入共享内存失败！\n");
+        printf("映射共享内存失败！\n");
         return -1;
     }
 
-    in_mutex = sem_open(IN_SEM_MUTEX_NAME, O_CREAT | O_EXCL, IN_SEM_PERM, 1);
-    if (in_mutex == SEM_FAILED)
+    mutex = sem_open(SEM_MUTEX_NAME, O_CREAT | O_EXCL, IN_SEM_PERM, 1);
+    if (mutex == SEM_FAILED)
     {
-        printf("开启输入互斥信号量失败！\n");
+        printf("开启互斥信号量失败！\n");
         return -1;
     }
-    in_ready = sem_open(IN_SEM_READY_NAME, O_CREAT | O_EXCL, IN_SEM_PERM, 0);
+    in_ready = sem_open(SEM_IN_READY_NAME, O_CREAT | O_EXCL, IN_SEM_PERM, 0);
     if (in_ready == SEM_FAILED)
     {
         printf("开启输入通知信号量失败！\n");
+        return -1;
+    }
+    out_ready = sem_open(SEM_OUT_READY_NAME, O_CREAT | O_EXCL, IN_SEM_PERM, 0);
+    if (out_ready == SEM_FAILED)
+    {
+        printf("开启输出通知信号量失败！\n");
         return -1;
     }
 
@@ -58,19 +65,24 @@ int open_shm()
 
 int unlink_shm()
 {
-    if (shm_unlink(IN_SHM_NAME))
+    if (shm_unlink(SHM_NAME))
     {
-        printf("断开输入共享内存链接失败！\n");
+        printf("断开共享内存链接失败！\n");
         return -1;
     }
-    if (sem_unlink(IN_SEM_MUTEX_NAME))
+    if (sem_unlink(SEM_MUTEX_NAME))
     {
-        printf("断开输入互斥信号量链接失败！\n");
+        printf("断开互斥信号量链接失败！\n");
         return -1;
     }
-    if (sem_unlink(IN_SEM_READY_NAME))
+    if (sem_unlink(SEM_IN_READY_NAME))
     {
         printf("断开输入通知信号量链接失败！\n");
+        return -1;
+    }
+    if (sem_unlink(SEM_OUT_READY_NAME))
+    {
+        printf("断开输出通知信号量链接失败！\n");
         return -1;
     }
     return 0;
@@ -78,7 +90,7 @@ int unlink_shm()
 
 void handle_msg()
 {
-    inmsg_t inmsg;
+    msg_t msg;
     while (1)
     {
         if (sem_wait(in_ready))
@@ -86,106 +98,98 @@ void handle_msg()
             printf("获取输入通知信号量失败！\n");
             return;
         }
-        memcpy(&inmsg, in_shm, IN_MSG_SIZE);
+        memcpy(&msg, shm, SHM_SIZE);
 
-        printf("%s\n", inmsg.cmd);
+        printf("%s\n", msg.cmd);
 
-        if (!logined[inmsg.uid] && !strncmp(inmsg.cmd, "LOGIN", 5))
+        if (!logined[msg.uid] && !strncmp(msg.cmd, "LOGIN", 5))
         {
             // 登录信息。
             char pwd[PWD_LEN];
-            strncpy(pwd, inmsg.cmd + 6, PWD_LEN);
-            if (login(inmsg.uid, pwd)) // 密码正确
+            strncpy(pwd, msg.cmd + 6, PWD_LEN);
+            if (login(msg.uid, pwd)) // 密码正确
             {
-                strcpy(inmsg.cmd, "SUCCESS");
+                strcpy(msg.cmd, "SUCCESS");
                 // 使用当前时间戳作为对应输出共享内存名字。
-                sprintf(inmsg.cmd + 7, " %lu", get_timestamp());
-                memcpy(in_shm, &inmsg, IN_MSG_SIZE);
+                sprintf(msg.cmd + 7, " %lu", get_timestamp());
+                memcpy(shm, &msg, SHM_SIZE);
 
                 // 等待客户端开启输出共享内存和输出通知信号量。
-                sem_post(in_ready);
-                usleep(SYNC_WAIT);
+                sem_post(out_ready);
                 sem_wait(in_ready);
-                char out_shm_name[TIMESTAMP_LEN + 8];
-                out_shm_name[TIMESTAMP_LEN + 7] = 0;
-                strcpy(out_shm_name, "fs_out_");
-                strncpy(out_shm_name + 7, inmsg.cmd + 8, TIMESTAMP_LEN);
-                int fd = shm_open(out_shm_name, O_RDWR, 0662);
+                char spec_shm_name[TIMESTAMP_LEN + 4];
+                spec_shm_name[TIMESTAMP_LEN + 3] = 0;
+                strcpy(spec_shm_name, "fs_");
+                strncpy(spec_shm_name + 3, msg.cmd + 8, TIMESTAMP_LEN);
+                int fd = shm_open(spec_shm_name, O_RDWR, 0662);
                 if (fd == -1)
                 {
-                    printf("连接输出共享内存失败！\n");
-                    sem_post(in_ready);
-                    usleep(SYNC_WAIT_LONG);
+                    printf("连接专属共享内存失败！\n");
+                    sem_post(out_ready);
                     continue;
                 }
-                out_shms[inmsg.uid] = mmap(NULL, OUT_BUF_SIZE, PROT_WRITE, MAP_SHARED, fd, 0);
-                if (*(int *)out_shms[inmsg.uid] == -1)
+                spec_shms[msg.uid] = mmap(NULL, SPEC_SHM_SIZE, PROT_WRITE, MAP_SHARED, fd, 0);
+                if (*(int *)spec_shms[msg.uid] == -1)
                 {
-                    printf("映射输出共享内存失败！\n");
-                    sem_post(in_ready);
-                    usleep(SYNC_WAIT_LONG);
+                    printf("映射专属共享内存失败！\n");
+                    sem_post(out_ready);
                     continue;
                 }
-                memset(out_shms[inmsg.uid], 0, OUT_BUF_SIZE);
+                memset(spec_shms[msg.uid], 0, SPEC_SHM_SIZE);
 
-                char out_sem_ready_name[TIMESTAMP_LEN + 14];
-                out_sem_ready_name[TIMESTAMP_LEN + 13] = 0;
-                strcpy(out_sem_ready_name, "fs_out_ready_");
-                strncpy(out_sem_ready_name + 13, inmsg.cmd + 8, TIMESTAMP_LEN);
-                out_readys[inmsg.uid] = sem_open(out_sem_ready_name, O_EXCL);
-                if (out_readys[inmsg.uid] == SEM_FAILED)
+                char spec_sem_out_ready_name[TIMESTAMP_LEN + 14];
+                spec_sem_out_ready_name[TIMESTAMP_LEN + 13] = 0;
+                strcpy(spec_sem_out_ready_name, "fs_out_ready_");
+                strncpy(spec_sem_out_ready_name + 13, msg.cmd + 8, TIMESTAMP_LEN);
+                spec_out_readys[msg.uid] = sem_open(spec_sem_out_ready_name, O_EXCL);
+                if (spec_out_readys[msg.uid] == SEM_FAILED)
                 {
-                    out_shms[inmsg.uid] = NULL;
-                    printf("连接输出通知信号量失败！\n");
-                    sem_post(in_ready);
-                    usleep(SYNC_WAIT_LONG);
+                    spec_shms[msg.uid] = NULL;
+                    printf("连接专属输出通知信号量失败！\n");
+                    sem_post(out_ready);
                     continue;
                 }
 
                 // 再次通知 shell
-                strcpy(inmsg.cmd, "SUCCESS AGAIN");
-                memcpy(in_shm, &inmsg, IN_MSG_SIZE);
-                logined[inmsg.uid] = 1;
+                strcpy(msg.cmd, "SUCCESS AGAIN");
+                memcpy(shm, &msg, SHM_SIZE);
+                logined[msg.uid] = 1;
             }
-            sem_post(in_ready);
-            usleep(SYNC_WAIT_LONG);
+            sem_post(out_ready);
         }
-        else if (logined[inmsg.uid])
+        else if (logined[msg.uid])
         {
             // 登出。
-            if (!strncmp(inmsg.cmd, "LOGOUT", 6))
+            if (!strncmp(msg.cmd, "LOGOUT", 6))
             {
-                logined[inmsg.uid] = 0;
-                out_shms[inmsg.uid] = NULL;
-                sem_post(in_ready);
-                usleep(SYNC_WAIT_LONG);
+                logined[msg.uid] = 0;
+                spec_shms[msg.uid] = NULL;
+                sem_post(out_ready);
             }
-            else if (inmsg.uid == 0 && !strncmp(inmsg.cmd, "shutdown", 8))
+            else if (msg.uid == 0 && (!strncmp(msg.cmd, "shutdown", 8) || !strncmp(msg.cmd, "SHUTDOWN", 8)))
             {
-                memset(out_shms[inmsg.uid], 0, last_out_idx[inmsg.uid]);
-                sem_post(in_ready);
-                usleep(SYNC_WAIT_LONG);
-                sem_post(out_readys[inmsg.uid]);
+                memset(spec_shms[msg.uid], 0, last_spec_shm_pos[msg.uid]);
+                sem_post(out_ready);
+                sem_post(spec_out_readys[msg.uid]);
                 return;
             }
             else
             {
-                sem_post(in_ready);
-                usleep(SYNC_WAIT_LONG);
-                handle_cmd(&inmsg);
-                sem_post(out_readys[inmsg.uid]);
+                sem_post(out_ready);
+                handle_cmd(&msg);
+                sem_post(spec_out_readys[msg.uid]);
             }
         }
     }
 }
 
-void handle_cmd(inmsg_t *inmsg)
+void handle_cmd(msg_t *msg)
 {
-    void *out_shm = out_shms[inmsg->uid];
-    memset(out_shm, 0, last_out_idx[inmsg->uid]);
+    void *spec_shm = spec_shms[msg->uid];
+    memset(spec_shm, 0, last_spec_shm_pos[msg->uid]);
 
-    if (!strncmp(inmsg->cmd, "info", 4) || !strncmp(inmsg->cmd, "INFO", 4))
-        last_out_idx[inmsg->uid] = info(out_shm);
+    if (!strncmp(msg->cmd, "info", 4) || !strncmp(msg->cmd, "INFO", 4))
+        last_spec_shm_pos[msg->uid] = info(spec_shm);
 
     return;
 }
