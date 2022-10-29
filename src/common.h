@@ -66,6 +66,7 @@ typedef struct
 typedef struct
 {
     uint32_t ino;
+    uint32_t type; // 为 0 时为文件，为 1 时为目录。
     uint32_t size; // 当 inode 储存目录时， size 代表目录项数量。
     uint32_t bcnt;
     uint32_t uid;
@@ -77,7 +78,7 @@ typedef struct
     uint32_t double_indirect_blocks[2];
     uint32_t triple_indirect_block;
 
-    uint32_t padding[INODE_SIZE / 4 - 22];
+    uint32_t padding[INODE_SIZE / 4 - 23];
 } inode_t;
 
 typedef struct

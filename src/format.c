@@ -67,6 +67,7 @@ int mkroot()
 {
     inode_t inode;
     inode.ino = 0;
+    inode.type = 1;
     inode.ctime = (uint32_t)time(NULL);
     inode.wtime = (uint32_t)time(NULL);
     inode.uid = 0;
