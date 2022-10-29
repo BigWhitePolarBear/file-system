@@ -73,7 +73,7 @@ uint32_t get_free_data()
     if (sb.last_alloc_data < sb.data_bcnt - 1)
         bno = sb.last_alloc_data + 1;
     else
-        bno = 0;
+        bno = 1; // 从头分配，编号为 0 的数据块分配给了根目录。
 
     while (1)
     {
@@ -176,7 +176,9 @@ int login(uint32_t uid, const char pwd[])
 
 uint16_t info(void *const spec_shm)
 {
-    static const char time_format[] = "%a %b %d %Y";
+    struct tm lt;
+    time_t t;
+
     uint16_t i = 0;
     strcpy(spec_shm, "系统状态：");
     i += 15;
@@ -187,19 +189,89 @@ uint16_t info(void *const spec_shm)
     i += 8;
     strcpy(spec_shm + i, "格式化时间：");
     i += 18;
-    memset(spec_shm + i, ' ', 16);
-    struct tm lt;
-    time_t t = sb.fmt_time;
+    t = sb.fmt_time;
     localtime_r(&t, &lt);
-    if (!strftime(spec_shm + i, 16, time_format, &lt))
-    {
-        memset(spec_shm, 0, i);
-        strcpy(spec_shm, "ERROR");
-        return 5;
-    }
-    i += 16;
-    strcpy(spec_shm + i, "\r\n");
-    i += 2;
+    sprintf(spec_shm + i, "%4d-%2d-%2d %2d:%2d:%2d\r\n", lt.tm_year + 1900, lt.tm_mon + 1, lt.tm_mday, lt.tm_hour,
+            lt.tm_min, lt.tm_sec);
+    i += 21;
+    strcpy(spec_shm + i, "最后修改时间：");
+    i += 21;
+    t = sb.fmt_time;
+    localtime_r(&t, &lt);
+    sprintf(spec_shm + i, "%4d-%2d-%2d %2d:%2d:%2d\r\n", lt.tm_year + 1900, lt.tm_mon + 1, lt.tm_mday, lt.tm_hour,
+            lt.tm_min, lt.tm_sec);
+    i += 21;
+    strcpy(spec_shm + i, "用户数量：");
+    i += 15;
+    sprintf(spec_shm + i, "%u\r\n", sb.ucnt);
+    i += 2 + num2width(sb.ucnt);
+    strcpy(spec_shm + i, "块大小：");
+    i += 12;
+    sprintf(spec_shm + i, "%u\r\n", sb.bsize);
+    i += 2 + num2width(sb.bsize);
+    strcpy(spec_shm + i, "块数量：");
+    i += 12;
+    sprintf(spec_shm + i, "%u\r\n", sb.bcnt);
+    i += 2 + num2width(sb.bcnt);
+    strcpy(spec_shm + i, "inode 数量：");
+    i += 15;
+    sprintf(spec_shm + i, "%u\r\n", sb.icnt);
+    i += 2 + num2width(sb.icnt);
+    strcpy(spec_shm + i, "空闲 inode 数量：");
+    i += 22;
+    sprintf(spec_shm + i, "%u\r\n", sb.free_icnt);
+    i += 2 + num2width(sb.free_icnt);
+    strcpy(spec_shm + i, "inode 大小：");
+    i += 15;
+    sprintf(spec_shm + i, "%u\r\n", sb.isize);
+    i += 2 + num2width(sb.isize);
+    strcpy(spec_shm + i, "inode 块数量：");
+    i += 18;
+    sprintf(spec_shm + i, "%u\r\n", sb.inode_bcnt);
+    i += 2 + num2width(sb.inode_bcnt);
+    strcpy(spec_shm + i, "数据块数量：");
+    i += 18;
+    sprintf(spec_shm + i, "%u\r\n", sb.data_bcnt);
+    i += 2 + num2width(sb.data_bcnt);
+    strcpy(spec_shm + i, "空闲数据块数量：");
+    i += 24;
+    sprintf(spec_shm + i, "%u\r\n", sb.free_data_bcnt);
+    i += 2 + num2width(sb.free_data_bcnt);
+    strcpy(spec_shm + i, "inode 位图块数量：");
+    i += 24;
+    sprintf(spec_shm + i, "%u\r\n", sb.inode_bitmap_bcnt);
+    i += 2 + num2width(sb.inode_bitmap_bcnt);
+    strcpy(spec_shm + i, "数据块位图块数量：");
+    i += 27;
+    sprintf(spec_shm + i, "%u\r\n", sb.data_bitmap_bcnt);
+    i += 2 + num2width(sb.data_bitmap_bcnt);
+    strcpy(spec_shm + i, "inode table 起始块号：");
+    i += 27;
+    sprintf(spec_shm + i, "%u\r\n", sb.inode_table_start);
+    i += 2 + num2width(sb.inode_table_start);
+    strcpy(spec_shm + i, "inode 位图起始块号：");
+    i += 27;
+    sprintf(spec_shm + i, "%u\r\n", sb.inode_bitmap_start);
+    i += 2 + num2width(sb.inode_bitmap_start);
+    strcpy(spec_shm + i, "数据块位图起始块号：");
+    i += 30;
+    sprintf(spec_shm + i, "%u\r\n", sb.data_bitmap_start);
+    i += 2 + num2width(sb.data_bitmap_start);
+    strcpy(spec_shm + i, "数据块起始块号：");
+    i += 24;
+    sprintf(spec_shm + i, "%u\r\n", sb.data_start);
+    i += 2 + num2width(sb.data_start);
 
     return i;
+}
+
+uint16_t num2width(uint32_t num)
+{
+    uint16_t width = 0;
+    while (num > 0)
+    {
+        width++;
+        num /= 10;
+    }
+    return width;
 }

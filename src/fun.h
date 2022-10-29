@@ -18,3 +18,5 @@ void sbinit();
 int login(uint32_t uid, const char pwd[]);
 
 uint16_t info(void *const out_shm);
+
+uint16_t num2width(uint32_t num);

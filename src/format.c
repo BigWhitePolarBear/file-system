@@ -10,16 +10,20 @@ superblock_t sb;
 int mkfs()
 {
     mksb();
+    printf("格式化超级块完成！ \r\n");
     if (mkbitmap())
     {
-        printf("格式化位图失败！\n");
+        printf("格式化位图失败！ \r\n");
         return -1;
     }
+    printf("格式化位图完成！ \r\n");
     if (mkroot())
     {
-        printf("创建根目录失败！\n");
+        printf("创建根目录失败！ \r\n");
         return -1;
     }
+    printf("格式化根目录完成！ \r\n");
+
     return 0;
 }
 
@@ -48,8 +52,13 @@ void mksb()
     sb.data_bitmap_start = sb.inode_bitmap_start + sb.inode_bitmap_bcnt;
     sb.data_start = sb.data_bitmap_start + sb.data_bitmap_bcnt;
 
+    sb.last_alloc_inode = 0;
+    sb.last_alloc_data = 0;
+
     sb.users[0].uid = 0;
     strcpy(sb.users[0].pwd, "root");
+    for (uint8_t i = 1; i < MAX_USER_CNT; i++)
+        memset(sb.users[i].pwd, 0, PWD_LEN);
 
     sbwrite();
 }
@@ -66,13 +75,7 @@ int mkroot()
     // 保存自身
     inode.size = 1;
     inode.bcnt = 1;
-    uint32_t bno = get_free_data();
-    if (bno == 0xffffffff)
-    {
-        printf("获取空闲数据块失败！\n");
-        return -1;
-    }
-    inode.direct_blocks[0] = bno;
+    inode.direct_blocks[0] = 0;
     dirblock_t db;
     db.direntries[0].ino = inode.ino;
     db.direntries[0].ctime = inode.ctime;
@@ -82,17 +85,18 @@ int mkroot()
     strcpy(db.direntries[0].name, "./");
     db.direntries[1] = db.direntries[0];
     strcpy(db.direntries[1].name, "../");
-    if (bwrite(bno, &db))
+    if (bwrite(sb.data_start, &db))
     {
-        printf("写入目录数据块失败！\n");
+        printf("写入根目录数据块失败！ \r\n");
         return -1;
     }
     if (iwrite(0, &inode))
     {
-        printf("写入根目录 inode 失败！\n");
+        printf("写入根目录 inode 失败！ \r\n");
         return -1;
     }
     set_inode_bitmap(0);
+    set_data_bitmap(0);
 
     return 0;
 }
