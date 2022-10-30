@@ -264,29 +264,53 @@ format.c.s:
 	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/format.c.s
 .PHONY : format.c.s
 
-fun.o: fun.c.o
-.PHONY : fun.o
+interface_fun.o: interface_fun.c.o
+.PHONY : interface_fun.o
 
 # target to build an object file
-fun.c.o:
-	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/fun.c.o
-.PHONY : fun.c.o
+interface_fun.c.o:
+	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/interface_fun.c.o
+.PHONY : interface_fun.c.o
 
-fun.i: fun.c.i
-.PHONY : fun.i
+interface_fun.i: interface_fun.c.i
+.PHONY : interface_fun.i
 
 # target to preprocess a source file
-fun.c.i:
-	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/fun.c.i
-.PHONY : fun.c.i
+interface_fun.c.i:
+	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/interface_fun.c.i
+.PHONY : interface_fun.c.i
 
-fun.s: fun.c.s
-.PHONY : fun.s
+interface_fun.s: interface_fun.c.s
+.PHONY : interface_fun.s
 
 # target to generate assembly for a file
-fun.c.s:
-	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/fun.c.s
-.PHONY : fun.c.s
+interface_fun.c.s:
+	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/interface_fun.c.s
+.PHONY : interface_fun.c.s
+
+internal_fun.o: internal_fun.c.o
+.PHONY : internal_fun.o
+
+# target to build an object file
+internal_fun.c.o:
+	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/internal_fun.c.o
+.PHONY : internal_fun.c.o
+
+internal_fun.i: internal_fun.c.i
+.PHONY : internal_fun.i
+
+# target to preprocess a source file
+internal_fun.c.i:
+	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/internal_fun.c.i
+.PHONY : internal_fun.c.i
+
+internal_fun.s: internal_fun.c.s
+.PHONY : internal_fun.s
+
+# target to generate assembly for a file
+internal_fun.c.s:
+	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/internal_fun.c.s
+.PHONY : internal_fun.c.s
 
 shell.o: shell.c.o
 .PHONY : shell.o
@@ -361,9 +385,12 @@ help:
 	@echo "... format.o"
 	@echo "... format.i"
 	@echo "... format.s"
-	@echo "... fun.o"
-	@echo "... fun.i"
-	@echo "... fun.s"
+	@echo "... interface_fun.o"
+	@echo "... interface_fun.i"
+	@echo "... interface_fun.s"
+	@echo "... internal_fun.o"
+	@echo "... internal_fun.i"
+	@echo "... internal_fun.s"
 	@echo "... shell.o"
 	@echo "... shell.i"
 	@echo "... shell.s"

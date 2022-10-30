@@ -1,7 +1,7 @@
 #include "cmd.h"
 #include "common.h"
 #include "fcntl.h"
-#include "fun.h"
+#include "interface_fun.h"
 #include "semaphore.h"
 #include "stdio.h"
 #include "string.h"

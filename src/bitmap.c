@@ -2,7 +2,7 @@
 #include "assert.h"
 #include "device.h"
 #include "format.h"
-#include "fun.h"
+#include "internal_fun.h"
 #include "stdio.h"
 
 int set_inode_bitmap(uint32_t pos)
