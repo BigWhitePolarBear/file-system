@@ -5,18 +5,36 @@
 // 文件系统布局：
 // | 超级块 | inode Table | inode 位图 | 数据块位图 | 数据块 |
 
-#define DISK_SIZE 100 * 1024 * 1024
+#define DISK_SIZE (100 * 1024 * 1024)
 #define BLOCK_SIZE 1024
-#define BIT_PER_BLOCK BLOCK_SIZE * 8
-#define BLOCK_CNT DISK_SIZE / BLOCK_SIZE
-#define STORE_SIZE_PER_INODE BLOCK_SIZE * 4
-#define INODE_CNT DISK_SIZE / STORE_SIZE_PER_INODE
+#define BIT_PER_BLOCK (8 * BLOCK_SIZE)
+#define BLOCK_CNT (DISK_SIZE / BLOCK_SIZE)
+#define STORE_SIZE_PER_INODE (4 * BLOCK_SIZE)
+#define INODE_CNT (DISK_SIZE / STORE_SIZE_PER_INODE)
 #define INODE_SIZE 128
-#define INODE_PER_BLOCK BLOCK_SIZE / INODE_SIZE
+#define INODE_PER_BLOCK (BLOCK_SIZE / INODE_SIZE)
 #define DIR_ENTRY_SIZE 64
 #define MAX_USER_CNT 16
 #define PWD_LEN 16
-#define DIR_ENTRY_PER_BLOCK BLOCK_SIZE / DIR_ENTRY_SIZE
+
+#define DIRECT_BLOCK_CNT 8
+#define INDIRECT_BLOCK_CNT 4
+#define DOUBLE_INDIRECT_BLOCK_CNT 2
+#define TRIPLE_INDIRECT_BLOCK_CNT 1
+
+#define BNO_PER_BLOCK (BLOCK_SIZE / 4)
+#define DIR_ENTRY_PER_DIRECT_BLOCK (BLOCK_SIZE / DIR_ENTRY_SIZE)
+#define DIR_ENTRY_PER_INDIRECT_BLOCK (BNO_PER_BLOCK * DIR_ENTRY_PER_DIRECT_BLOCK)
+#define DIR_ENTRY_PER_DOUBLE_INDIRECT_BLOCK (BNO_PER_BLOCK * DIR_ENTRY_PER_INDIRECT_BLOCK)
+#define DIR_ENTRY_PER_TRIPLE_INDIRECT_BLOCK (BNO_PER_BLOCK * DIR_ENTRY_PER_DOUBLE_INDIRECT_BLOCK)
+
+#define DIRECT_BLOCK_DIR_ENTRY_CNT (DIRECT_BLOCK_CNT * DIR_ENTRY_PER_DIRECT_BLOCK)
+#define INDIRECT_BLOCK_OFFSET DIRECT_BLOCK_DIR_ENTRY_CNT
+#define INDIRECT_BLOCK_DIR_ENTRY_CNT (INDIRECT_BLOCK_CNT * DIR_ENTRY_PER_INDIRECT_BLOCK)
+#define DOUBLE_INDIRECT_BLOCK_OFFSET (INDIRECT_BLOCK_OFFSET + INDIRECT_BLOCK_DIR_ENTRY_CNT)
+#define DOUBLE_INDIRECT_BLOCK_DIR_ENTRY_CNT (DOUBLE_INDIRECT_BLOCK_CNT * DIR_ENTRY_PER_DOUBLE_INDIRECT_BLOCK)
+#define TRIPLE_INDIRECT_BLOCK_OFFSET (DOUBLE_INDIRECT_BLOCK_OFFSET + DOUBLE_INDIRECT_BLOCK_DIR_ENTRY_CNT)
+#define TRIPLE_INDIRECT_BLOCK_DIR_ENTRY_CNT (TRIPLE_INDIRECT_BLOCK_CNT * DIR_ENTRY_PER_TRIPLE_INDIRECT_BLOCK)
 
 typedef struct
 {
@@ -73,17 +91,17 @@ typedef struct
     uint32_t ctime;
     uint32_t wtime;
     uint32_t privilege; // 仅低 8 位有效，高 4 位中的低 3 位为拥有者权限，低 4 位中的低 3 位为其他用户权限。
-    uint32_t direct_blocks[8];
-    uint32_t indirect_blocks[4];
-    uint32_t double_indirect_blocks[2];
-    uint32_t triple_indirect_block;
+    uint32_t direct_blocks[DIRECT_BLOCK_CNT];
+    uint32_t indirect_blocks[INDIRECT_BLOCK_CNT];
+    uint32_t double_indirect_blocks[DOUBLE_INDIRECT_BLOCK_CNT];
+    uint32_t triple_indirect_blocks[TRIPLE_INDIRECT_BLOCK_CNT];
 
     uint32_t padding[INODE_SIZE / 4 - 23];
 } inode_t;
 
 typedef struct
 {
-    uint32_t blocks[BLOCK_SIZE / 4];
+    uint32_t blocks[BNO_PER_BLOCK];
 } indirectblock_t;
 
 typedef struct
@@ -91,6 +109,7 @@ typedef struct
     inode_t inodes[INODE_PER_BLOCK];
 } itableblock_t;
 
+#define FILE_NAME_LEN (DIR_ENTRY_SIZE - 4 * 5)
 typedef struct
 {
     uint32_t ino;
@@ -99,12 +118,12 @@ typedef struct
     uint32_t uid;
     uint32_t privilege;
 
-    char name[DIR_ENTRY_SIZE - 4 * 5];
+    char name[FILE_NAME_LEN];
 } direntry_t;
 
 typedef struct
 {
-    direntry_t direntries[DIR_ENTRY_PER_BLOCK];
+    direntry_t direntries[DIR_ENTRY_PER_DIRECT_BLOCK];
 } dirblock_t;
 
 extern superblock_t sb;

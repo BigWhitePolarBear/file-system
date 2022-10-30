@@ -74,17 +74,19 @@ int mkroot()
     inode.privilege = 077;
 
     // 保存自身
-    inode.size = 1;
+    inode.size = 2;
     inode.bcnt = 1;
-    inode.direct_blocks[0] = 0;
+    inode.direct_blocks[0] = sb.data_start + 0;
     dirblock_t db;
     db.direntries[0].ino = inode.ino;
     db.direntries[0].ctime = inode.ctime;
     db.direntries[0].wtime = inode.wtime;
     db.direntries[0].uid = inode.uid;
     db.direntries[0].privilege = inode.privilege;
+    memset(db.direntries[0].name, 0, FILE_NAME_LEN);
     strcpy(db.direntries[0].name, "./");
     db.direntries[1] = db.direntries[0];
+    memset(db.direntries[1].name, 0, FILE_NAME_LEN);
     strcpy(db.direntries[1].name, "../");
     if (bwrite(sb.data_start, &db))
     {

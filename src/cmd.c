@@ -20,6 +20,7 @@ uint8_t logined[MAX_USER_CNT];
 void *spec_shms[MAX_USER_CNT];
 uint16_t last_spec_shm_pos[MAX_USER_CNT];
 sem_t *spec_out_readys[MAX_USER_CNT];
+uint32_t working_dirs[MAX_USER_CNT];
 
 int open_shm()
 {
@@ -154,6 +155,7 @@ void handle_msg()
                 strcpy(msg.cmd, "SUCCESS AGAIN");
                 memcpy(shm, &msg, SHM_SIZE);
                 logined[msg.uid] = 1;
+                working_dirs[msg.uid] = 0;
             }
             sem_post(out_ready);
         }
@@ -163,10 +165,11 @@ void handle_msg()
             if (!strncmp(msg.cmd, "LOGOUT", 6))
             {
                 logined[msg.uid] = 0;
+                working_dirs[msg.uid] = 0xffffffff;
                 spec_shms[msg.uid] = NULL;
                 sem_post(out_ready);
             }
-            else if (msg.uid == 0 && (!strncmp(msg.cmd, "shutdown", 8) || !strncmp(msg.cmd, "SHUTDOWN", 8)))
+            else if (msg.uid == 0 && (!strncmp(msg.cmd, "shutdown", 8)))
             {
                 memset(spec_shms[msg.uid], 0, last_spec_shm_pos[msg.uid]);
                 sem_post(out_ready);
@@ -188,8 +191,15 @@ void handle_cmd(msg_t *msg)
     void *spec_shm = spec_shms[msg->uid];
     memset(spec_shm, 0, last_spec_shm_pos[msg->uid]);
 
-    if (!strncmp(msg->cmd, "info", 4) || !strncmp(msg->cmd, "INFO", 4))
-        last_spec_shm_pos[msg->uid] = info(spec_shm);
+    if (!strncmp(msg->cmd, "info", 4))
+        last_spec_shm_pos[msg->uid] = info(msg->uid);
+    else if (!strncmp(msg->cmd, "ls", 2) || !strncmp(msg->cmd, "dir", 3))
+        if (!strncmp(msg->cmd, "ls -l", 5) || !strncmp(msg->cmd, "dir -s", 6))
+            last_spec_shm_pos[msg->uid] = ls_detail(msg->uid);
+        else
+            last_spec_shm_pos[msg->uid] = ls(msg->uid);
+    else
+        last_spec_shm_pos[msg->uid] = unknown(msg->uid);
 
     return;
 }

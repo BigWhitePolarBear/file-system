@@ -141,7 +141,7 @@ int main()
         sem_post(in_ready);
         sem_wait(out_ready);
         sem_post(mutex);
-        if (ret == -1)
+        if (ret == -1) // shutdown
             goto Exit;
 
         // 等待后端返回输出。
@@ -307,7 +307,7 @@ int handle_input(msg_t *msg)
         free(t);
     }
 
-    if (msg->uid == 0 && (!strncmp(msg->cmd, "shutdown", 8) || !strncmp(msg->cmd, "SHUTDOWN", 8)))
+    if (msg->uid == 0 && !strncmp(msg->cmd, "shutdown", 8))
         return -1;
 
     return cur->pre->len;

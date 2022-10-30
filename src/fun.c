@@ -69,7 +69,7 @@ uint32_t get_free_data()
     }
 
     bitblock_t bb;
-    uint32_t bno;
+    uint32_t bno; // 临时名称，返回时会加上数据块起始偏移量。
     if (sb.last_alloc_data < sb.data_bcnt - 1)
         bno = sb.last_alloc_data + 1;
     else
@@ -95,7 +95,7 @@ uint32_t get_free_data()
                 sb.free_data_bcnt--;
                 sb.last_alloc_data = bno;
                 sbwrite();
-                return bno;
+                return sb.data_start + bno;
             }
             if (bno < sb.data_bcnt - 1)
                 bno++;
@@ -174,13 +174,14 @@ int login(uint32_t uid, const char pwd[])
     return !strncmp(sb.users[uid].pwd, pwd, PWD_LEN);
 }
 
-uint16_t info(void *const spec_shm)
+uint16_t info(uint32_t uid)
 {
     struct tm lt;
     time_t t;
 
     uint16_t i = 0;
-    strcpy(spec_shm, "系统状态：");
+    void *spec_shm = spec_shms[uid];
+    strcpy(spec_shm + i, "系统状态：");
     i += 15;
     if (sb.status)
         strcpy(spec_shm + i, "异常\r\n");
@@ -263,6 +264,145 @@ uint16_t info(void *const spec_shm)
     i += 2 + num2width(sb.data_start);
 
     return i;
+}
+
+uint16_t ls(uint32_t uid)
+{
+    uint32_t i = 0;
+    void *spec_shm = spec_shms[uid];
+    inode_t inode;
+    if (iread(working_dirs[uid], &inode))
+    {
+        printf("读取 inode 失败！\n");
+        strcpy(spec_shm + i, "ERROR");
+        return 5;
+    }
+    assert(inode.type == 1);
+    indirectblock_t indirectb, double_indirectb, triple_indiectb;
+    dirblock_t db;
+
+    for (uint32_t j = 0; j < inode.size; j++)
+    {
+        if (j % DIR_ENTRY_PER_DIRECT_BLOCK == 0)
+        {
+            if (j < DIRECT_BLOCK_DIR_ENTRY_CNT)
+            {
+                if (bread(inode.direct_blocks[j % DIR_ENTRY_PER_DIRECT_BLOCK], &db))
+                {
+                    printf("读取目录块失败！\n");
+                    strcpy(spec_shm, "ERROR");
+                    return i > 5 ? i : 5;
+                }
+            }
+            else if (j - INDIRECT_BLOCK_OFFSET < INDIRECT_BLOCK_DIR_ENTRY_CNT)
+            {
+                if ((j - INDIRECT_BLOCK_OFFSET) % DIR_ENTRY_PER_INDIRECT_BLOCK == 0)
+                    if (bread(inode.indirect_blocks[(j - INDIRECT_BLOCK_OFFSET) % DIR_ENTRY_PER_INDIRECT_BLOCK],
+                              &indirectb))
+                    {
+                        printf("读取目录中间块失败！\n");
+                        strcpy(spec_shm, "ERROR");
+                        return i > 5 ? i : 5;
+                    }
+                if (bread(indirectb.blocks[(j - INDIRECT_BLOCK_OFFSET) % DIRECT_BLOCK_DIR_ENTRY_CNT], &db))
+                {
+                    printf("读取目录块失败！\n");
+                    strcpy(spec_shm, "ERROR");
+                    return i > 5 ? i : 5;
+                }
+            }
+            else if ((j - DOUBLE_INDIRECT_BLOCK_OFFSET) < DOUBLE_INDIRECT_BLOCK_DIR_ENTRY_CNT)
+            {
+                if ((j - DOUBLE_INDIRECT_BLOCK_OFFSET) % DIR_ENTRY_PER_DOUBLE_INDIRECT_BLOCK == 0)
+                    if (bread(inode.double_indirect_blocks[(j - DOUBLE_INDIRECT_BLOCK_OFFSET) %
+                                                           DIR_ENTRY_PER_DOUBLE_INDIRECT_BLOCK],
+                              &double_indirectb))
+                    {
+                        printf("读取目录中间块失败！\n");
+                        strcpy(spec_shm, "ERROR");
+                        return i > 5 ? i : 5;
+                    }
+                if ((j - DOUBLE_INDIRECT_BLOCK_OFFSET) % DIR_ENTRY_PER_INDIRECT_BLOCK == 0)
+                    if (bread(
+                            double_indirectb.blocks[(j - DOUBLE_INDIRECT_BLOCK_OFFSET) % DIR_ENTRY_PER_INDIRECT_BLOCK],
+                            &indirectb))
+                    {
+                        printf("读取目录中间块失败！\n");
+                        strcpy(spec_shm, "ERROR");
+                        return i > 5 ? i : 5;
+                    }
+                if (bread(indirectb.blocks[(j - DOUBLE_INDIRECT_BLOCK_OFFSET) % DIRECT_BLOCK_DIR_ENTRY_CNT], &db))
+                {
+                    printf("读取目录块失败！\n");
+                    strcpy(spec_shm, "ERROR");
+                    return i > 5 ? i : 5;
+                }
+            }
+            else if ((j - TRIPLE_INDIRECT_BLOCK_OFFSET) < TRIPLE_INDIRECT_BLOCK_DIR_ENTRY_CNT)
+            {
+                if ((j - TRIPLE_INDIRECT_BLOCK_OFFSET) % DIR_ENTRY_PER_TRIPLE_INDIRECT_BLOCK == 0)
+                    if (bread(inode.triple_indirect_blocks[(j - TRIPLE_INDIRECT_BLOCK_OFFSET) %
+                                                           DIR_ENTRY_PER_TRIPLE_INDIRECT_BLOCK],
+                              &triple_indiectb))
+                    {
+                        printf("读取目录中间块失败！\n");
+                        strcpy(spec_shm, "ERROR");
+                        return i > 5 ? i : 5;
+                    }
+                if ((j - TRIPLE_INDIRECT_BLOCK_OFFSET) % DIR_ENTRY_PER_DOUBLE_INDIRECT_BLOCK == 0)
+                    if (bread(triple_indiectb
+                                  .blocks[(j - TRIPLE_INDIRECT_BLOCK_OFFSET) % DIR_ENTRY_PER_DOUBLE_INDIRECT_BLOCK],
+                              &double_indirectb))
+                    {
+                        printf("读取目录中间块失败！\n");
+                        strcpy(spec_shm, "ERROR");
+                        return i > 5 ? i : 5;
+                    }
+                if ((j - TRIPLE_INDIRECT_BLOCK_OFFSET) % DIR_ENTRY_PER_INDIRECT_BLOCK == 0)
+                    if (bread(
+                            double_indirectb.blocks[(j - TRIPLE_INDIRECT_BLOCK_OFFSET) % DIR_ENTRY_PER_INDIRECT_BLOCK],
+                            &indirectb))
+                    {
+                        printf("读取目录中间块失败！\n");
+                        strcpy(spec_shm, "ERROR");
+                        return i > 5 ? i : 5;
+                    }
+                if (bread(indirectb.blocks[(j - TRIPLE_INDIRECT_BLOCK_OFFSET) % DIRECT_BLOCK_DIR_ENTRY_CNT], &db))
+                {
+                    printf("读取目录块失败！\n");
+                    strcpy(spec_shm, "ERROR");
+                    return i > 5 ? i : 5;
+                }
+            }
+        }
+        sprintf(spec_shm + i, "%s\t", db.direntries[j % DIR_ENTRY_PER_DIRECT_BLOCK].name);
+        i += strlen(db.direntries[j % DIR_ENTRY_PER_DIRECT_BLOCK].name) + 1;
+        if (j > 0 && j % 5 == 0)
+        {
+            strcpy(spec_shm + i, "\r\n");
+            i += 2;
+        }
+    }
+
+    return i;
+}
+
+uint16_t ls_detail(uint32_t uid)
+{
+    uint32_t i = 0;
+    void *spec_shm = spec_shms[uid];
+    strcpy(spec_shm + i, "无法识别该命令！\r\n");
+    i += 26;
+    return 0;
+}
+
+uint16_t unknown(uint32_t uid)
+{
+    uint32_t i = 0;
+    void *spec_shm = spec_shms[uid];
+    strcpy(spec_shm + i, "无法识别该命令！\r\n");
+    i += 26;
+    return 0;
 }
 
 uint16_t num2width(uint32_t num)
