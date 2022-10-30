@@ -1,6 +1,7 @@
 #pragma once
 
 #include "common.h"
+#include "stdbool.h"
 
 // 返回值为 ino ，若为 0xffffffff 即为异常。
 uint32_t get_free_inode();
@@ -18,8 +19,7 @@ void sbinit();
 int login(uint32_t uid, const char pwd[]);
 
 uint16_t info(uint32_t uid);
-uint16_t ls(uint32_t uid);
-uint16_t ls_detail(uint32_t uid);
+uint16_t ls(uint32_t uid, bool detail);
 uint16_t unknown(uint32_t uid);
 
 uint16_t num2width(uint32_t num);

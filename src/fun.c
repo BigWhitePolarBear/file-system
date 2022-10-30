@@ -192,14 +192,14 @@ uint16_t info(uint32_t uid)
     i += 18;
     t = sb.fmt_time;
     localtime_r(&t, &lt);
-    sprintf(spec_shm + i, "%4d-%2d-%2d %2d:%2d:%2d\r\n", lt.tm_year + 1900, lt.tm_mon + 1, lt.tm_mday, lt.tm_hour,
+    sprintf(spec_shm + i, "%04d-%02d-%02d %02d:%02d:%02d\r\n", lt.tm_year + 1900, lt.tm_mon + 1, lt.tm_mday, lt.tm_hour,
             lt.tm_min, lt.tm_sec);
     i += 21;
     strcpy(spec_shm + i, "最后修改时间：");
     i += 21;
     t = sb.fmt_time;
     localtime_r(&t, &lt);
-    sprintf(spec_shm + i, "%4d-%2d-%2d %2d:%2d:%2d\r\n", lt.tm_year + 1900, lt.tm_mon + 1, lt.tm_mday, lt.tm_hour,
+    sprintf(spec_shm + i, "%04d-%02d-%02d %02d:%02d:%02d\r\n", lt.tm_year + 1900, lt.tm_mon + 1, lt.tm_mday, lt.tm_hour,
             lt.tm_min, lt.tm_sec);
     i += 21;
     strcpy(spec_shm + i, "用户数量：");
@@ -266,7 +266,7 @@ uint16_t info(uint32_t uid)
     return i;
 }
 
-uint16_t ls(uint32_t uid)
+uint16_t ls(uint32_t uid, bool detial)
 {
     uint32_t i = 0;
     void *spec_shm = spec_shms[uid];
@@ -375,25 +375,103 @@ uint16_t ls(uint32_t uid)
                 }
             }
         }
-        sprintf(spec_shm + i, "%s\t", db.direntries[j % DIR_ENTRY_PER_DIRECT_BLOCK].name);
-        i += strlen(db.direntries[j % DIR_ENTRY_PER_DIRECT_BLOCK].name) + 1;
-        if (j > 0 && j % 5 == 0)
+        direntry_t de = db.direntries[j % DIR_ENTRY_PER_DIRECT_BLOCK];
+        if (detial)
         {
-            strcpy(spec_shm + i, "\r\n");
-            i += 2;
+            // 权限。
+            if (de.type == 1)
+                strcpy(spec_shm + i++, "d");
+            else
+                strcpy(spec_shm + i++, "-");
+            if (de.privilege & 040)
+                strcpy(spec_shm + i++, "r");
+            else
+                strcpy(spec_shm + i++, "-");
+            if (de.privilege & 020)
+                strcpy(spec_shm + i++, "w");
+            else
+                strcpy(spec_shm + i++, "-");
+            if (de.privilege & 010)
+                strcpy(spec_shm + i++, "x");
+            else
+                strcpy(spec_shm + i++, "-");
+            if (de.privilege & 004)
+                strcpy(spec_shm + i++, "r");
+            else
+                strcpy(spec_shm + i++, "-");
+            if (de.privilege & 002)
+                strcpy(spec_shm + i++, "w");
+            else
+                strcpy(spec_shm + i++, "-");
+            if (de.privilege & 001)
+                strcpy(spec_shm + i++, "x");
+            else
+                strcpy(spec_shm + i++, "-");
+            strcpy(spec_shm + i++, "\t");
+
+            // 拥有者。
+            sprintf(spec_shm + i, "%2u\t", de.uid);
+            i += 3;
+
+            // 文件大小或目录元数据占用空间。
+            if (de.type == 0)
+            {
+                sprintf(spec_shm + i, "%u\t", de.size);
+                i += num2width(de.size) + 1;
+            }
+            else
+            {
+                sprintf(spec_shm + i, "%u\t", de.bcnt * BLOCK_SIZE);
+                i += num2width(de.bcnt * BLOCK_SIZE) + 1;
+            }
+
+            struct tm lt;
+            time_t t;
+            // 创建时间。
+            t = de.ctime;
+            localtime_r(&t, &lt);
+            sprintf(spec_shm + i, "%04d-%02d-%02d %02d:%02d:%02d\t", lt.tm_year + 1900, lt.tm_mon + 1, lt.tm_mday,
+                    lt.tm_hour, lt.tm_min, lt.tm_sec);
+            i += 20;
+
+            // 创建时间。
+            t = de.wtime;
+            localtime_r(&t, &lt);
+            sprintf(spec_shm + i, "%04d-%02d-%02d %02d:%02d:%02d\t", lt.tm_year + 1900, lt.tm_mon + 1, lt.tm_mday,
+                    lt.tm_hour, lt.tm_min, lt.tm_sec);
+            i += 20;
+
+            // 名称
+            strcpy(spec_shm + i, de.name);
+            i += strlen(de.name);
+            if (de.type == 1)
+                strcpy(spec_shm + i++, "/");
+
+            if (j + 1 < inode.size)
+            {
+                strcpy(spec_shm + i, "\r\n");
+                i += 2;
+            }
+        }
+        else
+        {
+            strcpy(spec_shm + i, de.name);
+            i += strlen(de.name);
+            if (de.type == 1)
+                strcpy(spec_shm + i++, "/");
+            strcpy(spec_shm + i++, "\t");
+
+            if (j > 0 && j % 5 == 0)
+            {
+                strcpy(spec_shm + i, "\r\n");
+                i += 2;
+            }
         }
     }
+    strcpy(spec_shm + i, "\r\n");
+    i += 2;
 
     return i;
-}
-
-uint16_t ls_detail(uint32_t uid)
-{
-    uint32_t i = 0;
-    void *spec_shm = spec_shms[uid];
-    strcpy(spec_shm + i, "无法识别该命令！\r\n");
-    i += 26;
-    return 0;
 }
 
 uint16_t unknown(uint32_t uid)

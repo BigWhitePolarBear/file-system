@@ -109,10 +109,13 @@ typedef struct
     inode_t inodes[INODE_PER_BLOCK];
 } itableblock_t;
 
-#define FILE_NAME_LEN (DIR_ENTRY_SIZE - 4 * 5)
+#define FILE_NAME_LEN (DIR_ENTRY_SIZE - 4 * 8)
 typedef struct
 {
     uint32_t ino;
+    uint32_t type; // 为 0 时为文件，为 1 时为目录。
+    uint32_t size; // 当 inode 储存目录时， size 代表目录项数量。
+    uint32_t bcnt;
     uint32_t ctime;
     uint32_t wtime;
     uint32_t uid;

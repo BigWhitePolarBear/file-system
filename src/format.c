@@ -71,7 +71,7 @@ int mkroot()
     inode.ctime = (uint32_t)time(NULL);
     inode.wtime = (uint32_t)time(NULL);
     inode.uid = 0;
-    inode.privilege = 077;
+    inode.privilege = 066;
 
     // 保存自身
     inode.size = 2;
@@ -79,15 +79,18 @@ int mkroot()
     inode.direct_blocks[0] = sb.data_start + 0;
     dirblock_t db;
     db.direntries[0].ino = inode.ino;
+    db.direntries[0].type = 1;
+    db.direntries[0].size = 2;
+    db.direntries[0].bcnt = 1;
     db.direntries[0].ctime = inode.ctime;
     db.direntries[0].wtime = inode.wtime;
     db.direntries[0].uid = inode.uid;
     db.direntries[0].privilege = inode.privilege;
     memset(db.direntries[0].name, 0, FILE_NAME_LEN);
-    strcpy(db.direntries[0].name, "./");
+    strcpy(db.direntries[0].name, ".");
     db.direntries[1] = db.direntries[0];
     memset(db.direntries[1].name, 0, FILE_NAME_LEN);
-    strcpy(db.direntries[1].name, "../");
+    strcpy(db.direntries[1].name, "..");
     if (bwrite(sb.data_start, &db))
     {
         printf("写入根目录数据块失败！ \r\n");

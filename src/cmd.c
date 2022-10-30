@@ -195,9 +195,9 @@ void handle_cmd(msg_t *msg)
         last_spec_shm_pos[msg->uid] = info(msg->uid);
     else if (!strncmp(msg->cmd, "ls", 2) || !strncmp(msg->cmd, "dir", 3))
         if (!strncmp(msg->cmd, "ls -l", 5) || !strncmp(msg->cmd, "dir -s", 6))
-            last_spec_shm_pos[msg->uid] = ls_detail(msg->uid);
+            last_spec_shm_pos[msg->uid] = ls(msg->uid, true);
         else
-            last_spec_shm_pos[msg->uid] = ls(msg->uid);
+            last_spec_shm_pos[msg->uid] = ls(msg->uid, false);
     else
         last_spec_shm_pos[msg->uid] = unknown(msg->uid);
 
