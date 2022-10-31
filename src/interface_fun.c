@@ -128,7 +128,7 @@ uint16_t ls(uint32_t uid, bool detial)
         {
             if (j < DIRECT_BLOCK_DIR_ENTRY_CNT)
             {
-                if (bread(dir_inode.direct_blocks[j % DIR_ENTRY_PER_DIRECT_BLOCK], &db))
+                if (bread(dir_inode.direct_blocks[j / DIR_ENTRY_PER_DIRECT_BLOCK], &db))
                 {
                     printf("读取目录块失败！\n");
                     strcpy(spec_shm, "ERROR");
@@ -138,14 +138,14 @@ uint16_t ls(uint32_t uid, bool detial)
             else if (j - INDIRECT_BLOCK_OFFSET < INDIRECT_BLOCK_DIR_ENTRY_CNT)
             {
                 if ((j - INDIRECT_BLOCK_OFFSET) % DIR_ENTRY_PER_INDIRECT_BLOCK == 0)
-                    if (bread(dir_inode.indirect_blocks[(j - INDIRECT_BLOCK_OFFSET) % DIR_ENTRY_PER_INDIRECT_BLOCK],
+                    if (bread(dir_inode.indirect_blocks[(j - INDIRECT_BLOCK_OFFSET) / DIR_ENTRY_PER_INDIRECT_BLOCK],
                               &indirectb))
                     {
                         printf("读取目录中间块失败！\n");
                         strcpy(spec_shm, "ERROR");
                         return i > 5 ? i : 5;
                     }
-                if (bread(indirectb.blocks[(j - INDIRECT_BLOCK_OFFSET) % DIRECT_BLOCK_DIR_ENTRY_CNT], &db))
+                if (bread(indirectb.blocks[(j - INDIRECT_BLOCK_OFFSET) / DIRECT_BLOCK_DIR_ENTRY_CNT], &db))
                 {
                     printf("读取目录块失败！\n");
                     strcpy(spec_shm, "ERROR");
@@ -155,7 +155,7 @@ uint16_t ls(uint32_t uid, bool detial)
             else if ((j - DOUBLE_INDIRECT_BLOCK_OFFSET) < DOUBLE_INDIRECT_BLOCK_DIR_ENTRY_CNT)
             {
                 if ((j - DOUBLE_INDIRECT_BLOCK_OFFSET) % DIR_ENTRY_PER_DOUBLE_INDIRECT_BLOCK == 0)
-                    if (bread(dir_inode.double_indirect_blocks[(j - DOUBLE_INDIRECT_BLOCK_OFFSET) %
+                    if (bread(dir_inode.double_indirect_blocks[(j - DOUBLE_INDIRECT_BLOCK_OFFSET) /
                                                                DIR_ENTRY_PER_DOUBLE_INDIRECT_BLOCK],
                               &double_indirectb))
                     {
@@ -165,14 +165,14 @@ uint16_t ls(uint32_t uid, bool detial)
                     }
                 if ((j - DOUBLE_INDIRECT_BLOCK_OFFSET) % DIR_ENTRY_PER_INDIRECT_BLOCK == 0)
                     if (bread(
-                            double_indirectb.blocks[(j - DOUBLE_INDIRECT_BLOCK_OFFSET) % DIR_ENTRY_PER_INDIRECT_BLOCK],
+                            double_indirectb.blocks[(j - DOUBLE_INDIRECT_BLOCK_OFFSET) / DIR_ENTRY_PER_INDIRECT_BLOCK],
                             &indirectb))
                     {
                         printf("读取目录中间块失败！\n");
                         strcpy(spec_shm, "ERROR");
                         return i > 5 ? i : 5;
                     }
-                if (bread(indirectb.blocks[(j - DOUBLE_INDIRECT_BLOCK_OFFSET) % DIRECT_BLOCK_DIR_ENTRY_CNT], &db))
+                if (bread(indirectb.blocks[(j - DOUBLE_INDIRECT_BLOCK_OFFSET) / DIRECT_BLOCK_DIR_ENTRY_CNT], &db))
                 {
                     printf("读取目录块失败！\n");
                     strcpy(spec_shm, "ERROR");
@@ -182,7 +182,7 @@ uint16_t ls(uint32_t uid, bool detial)
             else if ((j - TRIPLE_INDIRECT_BLOCK_OFFSET) < TRIPLE_INDIRECT_BLOCK_DIR_ENTRY_CNT)
             {
                 if ((j - TRIPLE_INDIRECT_BLOCK_OFFSET) % DIR_ENTRY_PER_TRIPLE_INDIRECT_BLOCK == 0)
-                    if (bread(dir_inode.triple_indirect_blocks[(j - TRIPLE_INDIRECT_BLOCK_OFFSET) %
+                    if (bread(dir_inode.triple_indirect_blocks[(j - TRIPLE_INDIRECT_BLOCK_OFFSET) /
                                                                DIR_ENTRY_PER_TRIPLE_INDIRECT_BLOCK],
                               &triple_indiectb))
                     {
@@ -192,7 +192,7 @@ uint16_t ls(uint32_t uid, bool detial)
                     }
                 if ((j - TRIPLE_INDIRECT_BLOCK_OFFSET) % DIR_ENTRY_PER_DOUBLE_INDIRECT_BLOCK == 0)
                     if (bread(triple_indiectb
-                                  .blocks[(j - TRIPLE_INDIRECT_BLOCK_OFFSET) % DIR_ENTRY_PER_DOUBLE_INDIRECT_BLOCK],
+                                  .blocks[(j - TRIPLE_INDIRECT_BLOCK_OFFSET) / DIR_ENTRY_PER_DOUBLE_INDIRECT_BLOCK],
                               &double_indirectb))
                     {
                         printf("读取目录中间块失败！\n");
@@ -201,14 +201,14 @@ uint16_t ls(uint32_t uid, bool detial)
                     }
                 if ((j - TRIPLE_INDIRECT_BLOCK_OFFSET) % DIR_ENTRY_PER_INDIRECT_BLOCK == 0)
                     if (bread(
-                            double_indirectb.blocks[(j - TRIPLE_INDIRECT_BLOCK_OFFSET) % DIR_ENTRY_PER_INDIRECT_BLOCK],
+                            double_indirectb.blocks[(j - TRIPLE_INDIRECT_BLOCK_OFFSET) / DIR_ENTRY_PER_INDIRECT_BLOCK],
                             &indirectb))
                     {
                         printf("读取目录中间块失败！\n");
                         strcpy(spec_shm, "ERROR");
                         return i > 5 ? i : 5;
                     }
-                if (bread(indirectb.blocks[(j - TRIPLE_INDIRECT_BLOCK_OFFSET) % DIRECT_BLOCK_DIR_ENTRY_CNT], &db))
+                if (bread(indirectb.blocks[(j - TRIPLE_INDIRECT_BLOCK_OFFSET) / DIRECT_BLOCK_DIR_ENTRY_CNT], &db))
                 {
                     printf("读取目录块失败！\n");
                     strcpy(spec_shm, "ERROR");
@@ -299,7 +299,7 @@ uint16_t ls(uint32_t uid, bool detial)
                 strcpy(spec_shm + i, db.direntries[j % DIR_ENTRY_PER_DIRECT_BLOCK].name);
             i += strlen(db.direntries[j % DIR_ENTRY_PER_DIRECT_BLOCK].name);
 
-            if (j + 1 < inode.size)
+            if (j + 1 < dir_inode.size)
             {
                 strcpy(spec_shm + i, "\r\n");
                 i += 2;
@@ -317,7 +317,7 @@ uint16_t ls(uint32_t uid, bool detial)
             i += strlen(db.direntries[j % DIR_ENTRY_PER_DIRECT_BLOCK].name);
             strcpy(spec_shm + i++, "\t");
 
-            if (j > 0 && j % 5 == 0)
+            if ((j + 1) % 5 == 0)
             {
                 strcpy(spec_shm + i, "\r\n");
                 i += 2;
@@ -332,42 +332,95 @@ uint16_t ls(uint32_t uid, bool detial)
 
 uint16_t md(msg_t *msg)
 {
-    uint16_t i = 0;
     void *spec_shm = spec_shms[msg->uid];
 
     char cmd_dir[CMD_LEN - 3];
-    uint8_t j = 0;
     // 不会出现 else 场景，以下写法为了代码可读性。
     if (!strncmp(msg->cmd, "mkdir", 5))
-    {
-        uint8_t k = 6;
-        while (msg->cmd[k])
-            cmd_dir[j++] = msg->cmd[k++];
-    }
+        strcpy(cmd_dir, msg->cmd + 6);
     else if (!strncmp(msg->cmd, "md", 2))
-    {
-        uint8_t k = 3;
-        while (msg->cmd[k])
-            cmd_dir[j++] = msg->cmd[k++];
-    }
-    uint8_t cmd_dir_len = j;
+        strcpy(cmd_dir, msg->cmd + 3);
+    uint8_t cmd_dir_len = strlen(cmd_dir);
 
-    if (cmd_dir[0] != '/')
+    uint8_t l = 0, r = 0;
+    uint32_t working_dir = working_dirs[msg->uid];
+    if (cmd_dir[0] == '/')
     {
-        // 检查有无嵌套目录（非倒数第一个字符为 '/' 说明存在嵌套目录）。
-        for (j = 0; j < cmd_dir_len - 1; j++)
-            if (cmd_dir[j] == '/')
+        working_dir = 0;
+        l = r = 1;
+    }
+    if (cmd_dir[cmd_dir_len - 1] == '/')
+        cmd_dir[--cmd_dir_len] = 0;
+
+    // 逐一分解 cmd_dir 中出现的目录。
+    while (1)
+    {
+        while (r < cmd_dir_len && cmd_dir[r] != '/')
+            r++;
+        if (r < cmd_dir_len - 1)
+        {
+            if (r - l > FILE_NAME_LEN)
             {
-                strcpy(spec_shm, "mkdir: 出现嵌套目录！\r\n");
-                return i > 30 ? i : 30;
+                strcpy(spec_shm, "mkdir: 目录不存在！\r\n");
+                return 27;
             }
+            char filename[FILE_NAME_LEN];
+            memset(filename, 0, FILE_NAME_LEN);
+            strncpy(filename, cmd_dir + l, r - l);
+            uint32_t type;
+            working_dir = search_file(working_dir, filename, &type);
+            if (working_dir == 0xfffffffe)
+            {
+                strcpy(spec_shm, "ERROR");
+                return 5;
+            }
+            else if (working_dir == 0xffffffff || type != 1)
+            {
+                strcpy(spec_shm, "mkdir: 目录不存在！\r\n");
+                return 27;
+            }
+        }
+        else // 说明已经是最后一个目录。
+        {
+            if (cmd_dir[r] == '/')
+                cmd_dir[r--] = 0;
+            if (r - l > FILE_NAME_LEN)
+            {
+                strcpy(spec_shm, "mkdir: 目录名过长！\r\n");
+                return 27;
+            }
+            uint32_t ino = search_file(working_dir, cmd_dir + l, NULL);
+            if (ino == 0xfffffffe)
+            {
+                strcpy(spec_shm, "ERROR");
+                return 5;
+            }
+            else if (ino == 0xffffffff)
+            {
+                int ret = create_file(working_dir, msg->uid, 1, cmd_dir + l);
+                if (ret == -1)
+                {
+                    strcpy(spec_shm, "mkdir: 目录容量不足！\r\n");
+                    return 30;
+                }
+                else if (ret == -2)
+                {
+                    strcpy(spec_shm, "ERROR");
+                    return 5;
+                }
+                assert(ret == 0);
+            }
+            else
+            {
+                strcpy(spec_shm, "mkdir: 同名目录或文件已存在！\r\n");
+                return 42;
+            }
+            break;
+        }
+        r++;
+        l = r;
     }
-    else
-    {
-        // 逐一分解 cmd_dir 中出现的目录。
-    }
-
-    return i;
+    return 0; // 若未出错， mkdir 不会有字符进入缓冲区。
 }
 
 uint16_t unknown(uint32_t uid)

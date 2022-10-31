@@ -29,6 +29,7 @@ int set_inode_bitmap(uint32_t pos)
 
 int set_data_bitmap(uint32_t pos)
 {
+    pos -= sb.data_start;
     assert(pos < sb.data_bcnt);
 
     bitblock_t bb;
@@ -73,6 +74,7 @@ int unset_inode_bitmap(uint32_t pos)
 
 int unset_data_bitmap(uint32_t pos)
 {
+    pos -= sb.data_start;
     assert(pos < sb.data_bcnt);
 
     bitblock_t bb;

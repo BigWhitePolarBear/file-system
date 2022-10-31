@@ -7,4 +7,3 @@ int mkfs();
 void mksb();
 int mkbitmap();
 int mkroot();
-int mkdir();

@@ -80,10 +80,8 @@ int mkroot()
     dirblock_t db;
     db.direntries[0].ino = inode.ino;
     db.direntries[0].type = 1;
-    memset(db.direntries[0].name, 0, FILE_NAME_LEN);
-    strcpy(db.direntries[0].name, ".");
     db.direntries[1] = db.direntries[0];
-    memset(db.direntries[1].name, 0, FILE_NAME_LEN);
+    strcpy(db.direntries[0].name, ".");
     strcpy(db.direntries[1].name, "..");
     if (bwrite(sb.data_start, &db))
     {
@@ -96,7 +94,7 @@ int mkroot()
         return -1;
     }
     set_inode_bitmap(0);
-    set_data_bitmap(0);
+    set_data_bitmap(sb.data_start);
 
     return 0;
 }
