@@ -549,8 +549,9 @@ int create_file(uint32_t dir_ino, uint32_t uid, uint32_t type, char filename[])
         return -2;
     }
     new_db.direntries[0].ino = inode.ino;
-    new_db.direntries[0].type = inode.type;
-    new_db.direntries[1] = new_db.direntries[0];
+    new_db.direntries[0].type = 1;
+    new_db.direntries[1].ino = dir_ino;
+    new_db.direntries[1].type = 1;
     strcpy(new_db.direntries[0].name, ".");
     strcpy(new_db.direntries[1].name, "..");
     if (bwrite(inode.direct_blocks[0], &new_db))

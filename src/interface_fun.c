@@ -107,6 +107,87 @@ uint16_t info(uint32_t uid)
     return i;
 }
 
+uint16_t cd(msg_t *msg)
+{
+    void *spec_shm = spec_shms[msg->uid];
+
+    char cmd_dir[CMD_LEN - 3];
+    strcpy(cmd_dir, msg->cmd + 3);
+    uint8_t cmd_dir_len = strlen(cmd_dir);
+
+    uint8_t l = 0, r = 0;
+    uint32_t working_dir = working_dirs[msg->uid];
+    if (cmd_dir[0] == '/')
+    {
+        if (cmd_dir_len == 1)
+        {
+            working_dirs[msg->uid] = 0;
+            return 0;
+        }
+        working_dir = 0;
+        l = r = 1;
+    }
+    if (cmd_dir[cmd_dir_len - 1] == '/')
+        cmd_dir[--cmd_dir_len] = 0;
+    // 逐一分解 cmd_dir 中出现的目录。
+    while (1)
+    {
+        while (r < cmd_dir_len && cmd_dir[r] != '/')
+            r++;
+        if (r < cmd_dir_len - 1)
+        {
+            if (r - l > FILE_NAME_LEN)
+            {
+                strcpy(spec_shm, "cd: 目录不存在！\r\n");
+                return 24;
+            }
+            char filename[FILE_NAME_LEN];
+            memset(filename, 0, FILE_NAME_LEN);
+            strncpy(filename, cmd_dir + l, r - l);
+            uint32_t type;
+            working_dir = search_file(working_dir, filename, &type);
+            if (working_dir == 0xfffffffe)
+            {
+                strcpy(spec_shm, "ERROR");
+                return 5;
+            }
+            else if (working_dir == 0xffffffff || type != 1)
+            {
+                strcpy(spec_shm, "cd: 目录不存在！\r\n");
+                return 24;
+            }
+        }
+        else // 说明已经是最后一个目录。
+        {
+            if (cmd_dir[r] == '/')
+                cmd_dir[r--] = 0;
+            if (r - l > FILE_NAME_LEN)
+            {
+                strcpy(spec_shm, "cd: 目录不存在！\r\n");
+                return 24;
+            }
+            uint32_t ino = search_file(working_dir, cmd_dir + l, NULL);
+            if (ino == 0xfffffffe)
+            {
+                strcpy(spec_shm, "ERROR");
+                return 5;
+            }
+            else if (ino == 0xffffffff)
+            {
+                strcpy(spec_shm, "cd: 目录不存在！\r\n");
+                return 24;
+            }
+            else
+                working_dirs[msg->uid] = ino;
+
+            break;
+        }
+        r++;
+        l = r;
+    }
+    return 0; // 若未出错， mkdir 不会有字符进入缓冲区。
+}
+
 uint16_t ls(uint32_t uid, bool detial)
 {
     uint32_t i = 0;
