@@ -165,7 +165,7 @@ Exit:
     // 恢复原始终端状态。
     if (tcsetattr(fd, TCSANOW, &tm_old) < 0)
     {
-        printf("恢复原始终端状态失败！\n");
+        printf("恢复原始终端状态失败！\r\n");
         ret = -1;
     }
 

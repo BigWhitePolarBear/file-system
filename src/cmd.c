@@ -198,6 +198,8 @@ void handle_cmd(msg_t *msg)
             last_spec_shm_pos[msg->uid] = ls(msg->uid, true);
         else
             last_spec_shm_pos[msg->uid] = ls(msg->uid, false);
+    else if (!strncmp(msg->cmd, "mkdir", 5) || !strncmp(msg->cmd, "md", 2))
+        last_spec_shm_pos[msg->uid] = md(msg);
     else
         last_spec_shm_pos[msg->uid] = unknown(msg->uid);
 

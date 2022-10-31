@@ -13,7 +13,7 @@
 #define INODE_CNT (DISK_SIZE / STORE_SIZE_PER_INODE)
 #define INODE_SIZE 128
 #define INODE_PER_BLOCK (BLOCK_SIZE / INODE_SIZE)
-#define DIR_ENTRY_SIZE 64
+#define DIR_ENTRY_SIZE 32
 #define MAX_USER_CNT 16
 #define PWD_LEN 16
 
@@ -109,17 +109,11 @@ typedef struct
     inode_t inodes[INODE_PER_BLOCK];
 } itableblock_t;
 
-#define FILE_NAME_LEN (DIR_ENTRY_SIZE - 4 * 8)
+#define FILE_NAME_LEN (DIR_ENTRY_SIZE - 4 * 2)
 typedef struct
 {
     uint32_t ino;
-    uint32_t type; // 为 0 时为文件，为 1 时为目录。
-    uint32_t size; // 当 inode 储存目录时， size 代表目录项数量。
-    uint32_t bcnt;
-    uint32_t ctime;
-    uint32_t wtime;
-    uint32_t uid;
-    uint32_t privilege;
+    uint32_t type;
 
     char name[FILE_NAME_LEN];
 } direntry_t;

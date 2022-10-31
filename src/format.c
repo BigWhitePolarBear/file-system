@@ -80,12 +80,6 @@ int mkroot()
     dirblock_t db;
     db.direntries[0].ino = inode.ino;
     db.direntries[0].type = 1;
-    db.direntries[0].size = 2;
-    db.direntries[0].bcnt = 1;
-    db.direntries[0].ctime = inode.ctime;
-    db.direntries[0].wtime = inode.wtime;
-    db.direntries[0].uid = inode.uid;
-    db.direntries[0].privilege = inode.privilege;
     memset(db.direntries[0].name, 0, FILE_NAME_LEN);
     strcpy(db.direntries[0].name, ".");
     db.direntries[1] = db.direntries[0];
@@ -104,17 +98,6 @@ int mkroot()
     set_inode_bitmap(0);
     set_data_bitmap(0);
 
-    return 0;
-}
-
-int mkdir(const char *const name)
-{
-    uint32_t ino = get_free_inode();
-    if (ino == 0xffffffff)
-    {
-        printf("获取空闲 inode 失败！\n");
-        return -1;
-    }
     return 0;
 }
 
