@@ -1002,10 +1002,21 @@ int remove_dir(uint32_t ino, uint32_t uid)
     return 0;
 }
 
-uint16_t num2width(uint32_t num)
+uint16_t uint2width(uint32_t num)
 {
     uint16_t width = 0;
     while (num > 0)
+    {
+        width++;
+        num /= 10;
+    }
+    return width;
+}
+
+uint16_t float2width(float num)
+{
+    uint16_t width = 0;
+    while (num > 1)
     {
         width++;
         num /= 10;

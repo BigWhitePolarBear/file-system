@@ -36,4 +36,7 @@ int remove_file(uint32_t ino, uint32_t uid);
 // 为文件返回 -2 ，内部出错返回 -3 。
 int remove_dir(uint32_t ino, uint32_t uid);
 
-uint16_t num2width(uint32_t num);
+uint16_t uint2width(uint32_t num);
+
+// 只计算整数部分。
+uint16_t float2width(float num);

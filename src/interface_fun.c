@@ -22,6 +22,16 @@ uint16_t info(uint32_t uid)
 
     uint16_t i = 0;
     void *spec_shm = spec_shms[uid];
+    float storage_size = sb.bsize * sb.data_bcnt / 1024 / 1024;
+    float free_storage_size = sb.bsize * sb.free_data_bcnt / 1024 / 1024;
+    strcpy(spec_shm + i, "总存储空间：");
+    i += 18;
+    sprintf(spec_shm + i, "%.2fMB\r\n", storage_size);
+    i += float2width(storage_size) + 7;
+    strcpy(spec_shm + i, "可用存储空间：");
+    i += 21;
+    sprintf(spec_shm + i, "%.2fMB\r\n", free_storage_size);
+    i += float2width(storage_size) + 7;
     strcpy(spec_shm + i, "系统状态：");
     i += 15;
     if (sb.status)
@@ -46,63 +56,63 @@ uint16_t info(uint32_t uid)
     strcpy(spec_shm + i, "用户数量：");
     i += 15;
     sprintf(spec_shm + i, "%u\r\n", sb.ucnt);
-    i += 2 + num2width(sb.ucnt);
+    i += 2 + uint2width(sb.ucnt);
     strcpy(spec_shm + i, "块大小：");
     i += 12;
     sprintf(spec_shm + i, "%u\r\n", sb.bsize);
-    i += 2 + num2width(sb.bsize);
+    i += 2 + uint2width(sb.bsize);
     strcpy(spec_shm + i, "块数量：");
     i += 12;
     sprintf(spec_shm + i, "%u\r\n", sb.bcnt);
-    i += 2 + num2width(sb.bcnt);
+    i += 2 + uint2width(sb.bcnt);
     strcpy(spec_shm + i, "inode 数量：");
     i += 15;
     sprintf(spec_shm + i, "%u\r\n", sb.icnt);
-    i += 2 + num2width(sb.icnt);
+    i += 2 + uint2width(sb.icnt);
     strcpy(spec_shm + i, "空闲 inode 数量：");
     i += 22;
     sprintf(spec_shm + i, "%u\r\n", sb.free_icnt);
-    i += 2 + num2width(sb.free_icnt);
+    i += 2 + uint2width(sb.free_icnt);
     strcpy(spec_shm + i, "inode 大小：");
     i += 15;
     sprintf(spec_shm + i, "%u\r\n", sb.isize);
-    i += 2 + num2width(sb.isize);
+    i += 2 + uint2width(sb.isize);
     strcpy(spec_shm + i, "inode 块数量：");
     i += 18;
     sprintf(spec_shm + i, "%u\r\n", sb.inode_bcnt);
-    i += 2 + num2width(sb.inode_bcnt);
+    i += 2 + uint2width(sb.inode_bcnt);
     strcpy(spec_shm + i, "数据块数量：");
     i += 18;
     sprintf(spec_shm + i, "%u\r\n", sb.data_bcnt);
-    i += 2 + num2width(sb.data_bcnt);
+    i += 2 + uint2width(sb.data_bcnt);
     strcpy(spec_shm + i, "空闲数据块数量：");
     i += 24;
     sprintf(spec_shm + i, "%u\r\n", sb.free_data_bcnt);
-    i += 2 + num2width(sb.free_data_bcnt);
+    i += 2 + uint2width(sb.free_data_bcnt);
     strcpy(spec_shm + i, "inode 位图块数量：");
     i += 24;
     sprintf(spec_shm + i, "%u\r\n", sb.inode_bitmap_bcnt);
-    i += 2 + num2width(sb.inode_bitmap_bcnt);
+    i += 2 + uint2width(sb.inode_bitmap_bcnt);
     strcpy(spec_shm + i, "数据块位图块数量：");
     i += 27;
     sprintf(spec_shm + i, "%u\r\n", sb.data_bitmap_bcnt);
-    i += 2 + num2width(sb.data_bitmap_bcnt);
+    i += 2 + uint2width(sb.data_bitmap_bcnt);
     strcpy(spec_shm + i, "inode table 起始块号：");
     i += 27;
     sprintf(spec_shm + i, "%u\r\n", sb.inode_table_start);
-    i += 2 + num2width(sb.inode_table_start);
+    i += 2 + uint2width(sb.inode_table_start);
     strcpy(spec_shm + i, "inode 位图起始块号：");
     i += 27;
     sprintf(spec_shm + i, "%u\r\n", sb.inode_bitmap_start);
-    i += 2 + num2width(sb.inode_bitmap_start);
+    i += 2 + uint2width(sb.inode_bitmap_start);
     strcpy(spec_shm + i, "数据块位图起始块号：");
     i += 30;
     sprintf(spec_shm + i, "%u\r\n", sb.data_bitmap_start);
-    i += 2 + num2width(sb.data_bitmap_start);
+    i += 2 + uint2width(sb.data_bitmap_start);
     strcpy(spec_shm + i, "数据块起始块号：");
     i += 24;
     sprintf(spec_shm + i, "%u", sb.data_start);
-    i += num2width(sb.data_start);
+    i += uint2width(sb.data_start);
 
     return i;
 }
@@ -355,12 +365,12 @@ uint16_t ls(uint32_t uid, bool detial)
             if (inode.type == 0)
             {
                 sprintf(spec_shm + i, "%u\t", inode.size);
-                i += num2width(inode.size) + 1;
+                i += uint2width(inode.size) + 1;
             }
             else
             {
                 sprintf(spec_shm + i, "%u\t", inode.bcnt * BLOCK_SIZE);
-                i += num2width(inode.bcnt * BLOCK_SIZE) + 1;
+                i += uint2width(inode.bcnt * BLOCK_SIZE) + 1;
             }
 
             struct tm lt;

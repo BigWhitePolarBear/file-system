@@ -133,7 +133,6 @@ int main()
         int ret = handle_input(&msg);
         if (ret == 0)
             continue;
-        printf("%s\r\n", msg.cmd);
         if (!strcmp(msg.cmd, "q") || !strcmp(msg.cmd, "exit") || !strcmp(msg.cmd, "quit"))
             break;
         sem_wait(mutex);
