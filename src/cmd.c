@@ -202,6 +202,8 @@ void handle_cmd(msg_t *msg)
         last_spec_shm_pos[msg->uid] = md(msg);
     else if (!strncmp(msg->cmd, "cd", 2))
         last_spec_shm_pos[msg->uid] = cd(msg);
+    else if (!strncmp(msg->cmd, "rd", 2) || !strncmp(msg->cmd, "rmdir", 5))
+        last_spec_shm_pos[msg->uid] = rd(msg);
     else
         last_spec_shm_pos[msg->uid] = unknown(msg->uid);
 

@@ -149,7 +149,9 @@ int main()
         if (!strncmp(spec_shm, "ERROR", 5))
             printf("ERROR\r\n");
         else
-            printf("%s\r\n", (char *)spec_shm);
+            printf("%s", (char *)spec_shm);
+        if (strlen((char *)spec_shm))
+            printf("\r\n");
     }
 
     // 发送登出消息。

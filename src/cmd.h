@@ -11,7 +11,7 @@
 #define IN_SEM_PERM (S_IRWXU | S_IRWXG | S_IRWXO)
 #define MAX_USER_CNT 16
 #define TIMESTAMP_LEN 13
-#define SPEC_SHM_SIZE 1024
+#define SPEC_SHM_SIZE BLOCK_SIZE
 
 // 供 fun.c 实现具体功能。
 extern void *spec_shms[MAX_USER_CNT];

@@ -93,8 +93,6 @@ int mkroot()
         printf("写入根目录 inode 失败！ \r\n");
         return -1;
     }
-    set_inode_bitmap(0);
-    set_data_bitmap(sb.data_start);
 
     return 0;
 }
@@ -102,6 +100,7 @@ int mkroot()
 int mkbitmap()
 {
     bitblock_t bb;
+    memset(&bb, 0, BLOCK_SIZE);
     // 清空 bitmap 。
     for (int i = sb.inode_bitmap_start; i < sb.data_bitmap_start + sb.data_bitmap_bcnt; i++)
     {
@@ -112,5 +111,7 @@ int mkbitmap()
         }
         sbwrite();
     }
+    set_inode_bitmap(0);
+    set_data_bitmap(sb.data_start);
     return 0;
 }
