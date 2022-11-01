@@ -459,7 +459,7 @@ int create_file(uint32_t dir_ino, uint32_t uid, uint32_t type, char filename[])
             return -2;
         }
         indirectblock_t indirectb;
-        if ((dir_inode.size - DOUBLE_INDIRECT_DIR_OFFSET) % DIR_ENTRY_PER_INDIRECT_BLOCK == 0)
+        if ((dir_inode.size + 1 - DOUBLE_INDIRECT_DIR_OFFSET) % DIR_ENTRY_PER_INDIRECT_BLOCK == 0)
         {
             if ((double_indirectb.blocks[(dir_inode.size - DOUBLE_INDIRECT_DIR_OFFSET) %
                                          DIR_ENTRY_PER_DOUBLE_INDIRECT_BLOCK / DIR_ENTRY_PER_INDIRECT_BLOCK] =
@@ -622,8 +622,14 @@ int create_file(uint32_t dir_ino, uint32_t uid, uint32_t type, char filename[])
     }
     inode.ino = de->ino;
     inode.type = type;
-    if (inode.type == 1)
+    if (inode.type == 0)
     {
+        inode.size = 0;
+        inode.bcnt = 0;
+    }
+    else
+    {
+        assert(inode.type == 1);
         inode.size = 2;
         inode.bcnt = 1;
     }
@@ -631,29 +637,32 @@ int create_file(uint32_t dir_ino, uint32_t uid, uint32_t type, char filename[])
     inode.ctime = (uint32_t)time(NULL);
     inode.wtime = (uint32_t)time(NULL);
     inode.privilege = 066;
-    if ((inode.direct_blocks[0] = get_free_data()) == 0xffffffff)
+    if (inode.type == 1)
     {
-        printf("获取空闲数据块失败！\n");
-        return -2;
+        if ((inode.direct_blocks[0] = get_free_data()) == 0xffffffff)
+        {
+            printf("获取空闲数据块失败！\n");
+            return -2;
+        }
+        dirblock_t new_db;
+        if (bread(inode.direct_blocks[0], &new_db))
+        {
+            printf("读取目录块失败！\n");
+            return -2;
+        }
+        new_db.direntries[0].ino = inode.ino;
+        new_db.direntries[0].type = 1;
+        new_db.direntries[1].ino = dir_ino;
+        new_db.direntries[1].type = 1;
+        strcpy(new_db.direntries[0].name, ".");
+        strcpy(new_db.direntries[1].name, "..");
+        if (bwrite(inode.direct_blocks[0], &new_db))
+        {
+            printf("写入目录块失败！\n");
+            return -2;
+        }
+        sbwrite();
     }
-    dirblock_t new_db;
-    if (bread(inode.direct_blocks[0], &new_db))
-    {
-        printf("读取目录块失败！\n");
-        return -2;
-    }
-    new_db.direntries[0].ino = inode.ino;
-    new_db.direntries[0].type = 1;
-    new_db.direntries[1].ino = dir_ino;
-    new_db.direntries[1].type = 1;
-    strcpy(new_db.direntries[0].name, ".");
-    strcpy(new_db.direntries[1].name, "..");
-    if (bwrite(inode.direct_blocks[0], &new_db))
-    {
-        printf("写入目录块失败！\n");
-        return -2;
-    }
-    sbwrite();
     if (bwrite(db_bno, &db))
     {
         printf("写入目录块失败！\n");
@@ -1004,6 +1013,8 @@ int remove_dir(uint32_t ino, uint32_t uid)
 
 uint16_t uint2width(uint32_t num)
 {
+    if (num == 0)
+        return 1;
     uint16_t width = 0;
     while (num > 0)
     {

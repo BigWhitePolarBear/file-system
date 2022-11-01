@@ -156,7 +156,7 @@ uint16_t cd(msg_t *msg)
             strncpy(filename, cmd_dir + l, r - l);
             uint32_t type;
             working_dir = search(working_dir, filename, &type, false, false);
-            if (working_dir == 0xfffffffe)
+            if (working_dir == 0xfffffffd)
             {
                 strcpy(spec_shm, "ERROR");
                 return 5;
@@ -369,6 +369,7 @@ uint16_t ls(uint32_t uid, bool detial)
             }
             else
             {
+                assert(inode.type == 1);
                 sprintf(spec_shm + i, "%u\t", inode.bcnt * BLOCK_SIZE);
                 i += uint2width(inode.bcnt * BLOCK_SIZE) + 1;
             }
@@ -487,7 +488,7 @@ uint16_t md(msg_t *msg)
                 return 25;
             }
             uint32_t ino = search(working_dir, cmd_dir + l, NULL, false, false);
-            if (ino == 0xfffffffe)
+            if (ino == 0xfffffffd)
             {
                 strcpy(spec_shm, "ERROR");
                 return 5;
@@ -632,6 +633,104 @@ uint16_t rd(msg_t *msg)
         l = r;
     }
 
+    return 0; // 若未出错， rmdir 不会有字符进入缓冲区。
+}
+
+uint16_t newfile(msg_t *msg)
+{
+    void *spec_shm = spec_shms[msg->uid];
+
+    char cmd_dir[CMD_LEN - 8];
+    strcpy(cmd_dir, msg->cmd + 8);
+    uint8_t cmd_dir_len = strlen(cmd_dir);
+
+    uint8_t l = 0, r = 0;
+    uint32_t working_dir = working_dirs[msg->uid];
+    if (cmd_dir[0] == '/')
+    {
+        if (cmd_dir_len == 1)
+        {
+            working_dirs[msg->uid] = 0;
+            return 0;
+        }
+        working_dir = 0;
+        l = r = 1;
+    }
+    // 逐一分解 cmd_dir 中出现的目录。
+    while (1)
+    {
+        while (r < cmd_dir_len && cmd_dir[r] != '/')
+            r++;
+        if (r < cmd_dir_len - 1)
+        {
+            if (r - l > FILE_NAME_LEN)
+            {
+                strcpy(spec_shm, "newfile: 目录不存在！");
+                return 27;
+            }
+            char filename[FILE_NAME_LEN];
+            memset(filename, 0, FILE_NAME_LEN);
+            strncpy(filename, cmd_dir + l, r - l);
+            uint32_t type;
+            working_dir = search(working_dir, filename, &type, false, false);
+            if (working_dir == 0xfffffffe)
+            {
+                strcpy(spec_shm, "ERROR");
+                return 5;
+            }
+            else if (working_dir == 0xffffffff || type != 1)
+            {
+                strcpy(spec_shm, "newfile: 目录不存在！");
+                return 27;
+            }
+        }
+        else // 说明已经是文件名。
+        {
+            if (cmd_dir[r] == '/')
+                cmd_dir[r--] = 0;
+            if (r == l)
+            {
+                strcpy(spec_shm, "newfile:文件名不能为空！");
+                return 32;
+            }
+            if (r - l > FILE_NAME_LEN)
+            {
+                strcpy(spec_shm, "newfile:文件名过长！");
+                return 26;
+            }
+            uint32_t ino = search(working_dir, cmd_dir + l, NULL, false, false);
+            if (ino == 0xfffffffd)
+            {
+                strcpy(spec_shm, "ERROR");
+                return 5;
+            }
+            else if (ino < 0xfffffffd)
+            {
+                strcpy(spec_shm, "newfile: 文件已存在！");
+                return 27;
+            }
+            else
+            {
+                assert(ino == 0xffffffff);
+                int ret = create_file(working_dir, msg->uid, 0, cmd_dir + l);
+                if (ret == -1)
+                {
+                    strcpy(spec_shm, "newfile: 目录容量不足！");
+                    return 30;
+                }
+                else if (ret == -2)
+                {
+                    strcpy(spec_shm, "ERROR");
+                    return 5;
+                }
+                assert(ret == 0);
+            }
+
+            break;
+        }
+        r++;
+        l = r;
+    }
     return 0; // 若未出错， rmdir 不会有字符进入缓冲区。
 }
 

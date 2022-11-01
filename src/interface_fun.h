@@ -16,4 +16,6 @@ uint16_t md(msg_t *msg);
 
 uint16_t rd(msg_t *msg);
 
+uint16_t newfile(msg_t *msg);
+
 uint16_t unknown(uint32_t uid);
