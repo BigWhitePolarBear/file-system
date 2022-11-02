@@ -205,6 +205,8 @@ void handle_cmd(const msg_t *const msg)
         last_spec_shm_pos[msg->uid] = newfile(msg);
     else if (!strncmp(msg->cmd, "rm", 2) || !strncmp(msg->cmd, "del", 3))
         last_spec_shm_pos[msg->uid] = rm(msg);
+    else if (!strncmp(msg->cmd, "cat", 3))
+        last_spec_shm_pos[msg->uid] = cat(msg);
     else
         last_spec_shm_pos[msg->uid] = unknown(msg->uid);
 

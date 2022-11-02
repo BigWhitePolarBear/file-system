@@ -155,13 +155,13 @@ uint16_t cd(const msg_t *const msg)
             memset(filename, 0, FILE_NAME_LEN);
             strncpy(filename, cmd_dir + l, r - l);
             uint32_t type;
-            working_dir = search(working_dir, filename, &type, false, false);
-            if (working_dir == 0xfffffffd)
+            working_dir = search(working_dir, msg->uid, filename, &type, false, false);
+            if (working_dir == -4)
             {
                 strcpy(spec_shm, "ERROR");
                 return 5;
             }
-            else if (working_dir == 0xffffffff || type != 1)
+            else if (working_dir == -1 || type != 1)
             {
                 strcpy(spec_shm, "cd: 目录不存在！");
                 return 22;
@@ -174,19 +174,36 @@ uint16_t cd(const msg_t *const msg)
                 strcpy(spec_shm, "cd: 目录不存在！");
                 return 22;
             }
-            uint32_t ino = search(working_dir, cmd_dir + l, NULL, false, false);
-            if (ino == 0xfffffffe)
+            uint32_t ino = search(working_dir, msg->uid, cmd_dir + l, NULL, false, false);
+            if (ino == -4)
             {
                 strcpy(spec_shm, "ERROR");
                 return 5;
             }
-            else if (ino == 0xffffffff)
+            else if (ino == -1)
             {
                 strcpy(spec_shm, "cd: 目录不存在！");
                 return 22;
             }
             else
+            {
+                assert(ino < (uint32_t)-4);
+
+                inode_t inode;
+                if (iread(ino, &inode))
+                {
+                    printf("读取 inode 失败！\n");
+                    strcpy(spec_shm, "ERROR");
+                    return 5;
+                }
+                if (!check_privilege(&inode, msg->uid, 1))
+                {
+                    strcpy(spec_shm, "cd: 权限不足！");
+                    return 19;
+                }
+
                 working_dirs[msg->uid] = ino;
+            }
 
             break;
         }
@@ -251,17 +268,18 @@ uint16_t ls(const msg_t *const msg)
         memset(filename, 0, FILE_NAME_LEN);
         strncpy(filename, cmd_dir + l, r - l);
         uint32_t type;
-        working_dir = search(working_dir, filename, &type, false, false);
-        if (working_dir == 0xfffffffd)
+        working_dir = search(working_dir, msg->uid, filename, &type, false, false);
+        if (working_dir == -4)
         {
             strcpy(spec_shm, "ERROR");
             return 5;
         }
-        else if (working_dir == 0xffffffff || type != 1)
+        else if (working_dir == -1 || type != 1)
         {
             strcpy(spec_shm, "ls: 目录不存在！");
             return 22;
         }
+        assert(working_dir < (uint32_t)-4);
 
         if (r == cmd_dir_len)
             break;
@@ -277,6 +295,12 @@ GetInfo:
         return 5;
     }
     assert(dir_inode.type == 1);
+    if (!check_privilege(&dir_inode, msg->uid, 4))
+    {
+        strcpy(spec_shm + i, "ls: 权限不足！");
+        return 19;
+    }
+
     indirectblock_t indirectb, double_indirectb, triple_indiectb;
     dirblock_t db;
 
@@ -533,13 +557,13 @@ uint16_t md(const msg_t *const msg)
             memset(filename, 0, FILE_NAME_LEN);
             strncpy(filename, cmd_dir + l, r - l);
             uint32_t type;
-            working_dir = search(working_dir, filename, &type, false, false);
-            if (working_dir == 0xfffffffd)
+            working_dir = search(working_dir, msg->uid, filename, &type, false, false);
+            if (working_dir == -4)
             {
                 strcpy(spec_shm, "ERROR");
                 return 5;
             }
-            else if (working_dir == 0xffffffff || type != 1)
+            else if (working_dir == -1 || type != 1)
             {
                 strcpy(spec_shm, "mkdir: 目录不存在！");
                 return 25;
@@ -552,29 +576,34 @@ uint16_t md(const msg_t *const msg)
                 strcpy(spec_shm, "mkdir: 目录名过长！");
                 return 25;
             }
-            uint32_t ino = search(working_dir, cmd_dir + l, NULL, false, false);
-            if (ino == 0xfffffffd)
+            uint32_t ino = search(working_dir, msg->uid, cmd_dir + l, NULL, false, false);
+            if (ino == -4)
             {
                 strcpy(spec_shm, "ERROR");
                 return 5;
             }
-            else if (ino == 0xffffffff)
+            else if (ino == -1)
             {
                 int ret = create_file(working_dir, msg->uid, 1, cmd_dir + l);
-                if (ret == -1)
+                switch (ret)
                 {
+                case -1:
+                    strcpy(spec_shm, "mkdir: 权限不足！");
+                    return 22;
+                case -2:
                     strcpy(spec_shm, "mkdir: 目录容量不足！");
                     return 28;
-                }
-                else if (ret == -2)
-                {
+                case -3:
                     strcpy(spec_shm, "ERROR");
                     return 5;
+                default:
+                    assert(ret == 0);
+                    break;
                 }
-                assert(ret == 0);
             }
             else
             {
+                assert(ino < (uint32_t)-4);
                 strcpy(spec_shm, "mkdir: 同名目录或文件已存在！");
                 return 40;
             }
@@ -641,17 +670,18 @@ uint16_t rd(const msg_t *const msg)
             memset(filename, 0, FILE_NAME_LEN);
             strncpy(filename, cmd_dir + l, r - l);
             uint32_t type;
-            working_dir = search(working_dir, filename, &type, false, false);
-            if (working_dir == 0xfffffffe)
+            working_dir = search(working_dir, msg->uid, filename, &type, false, false);
+            if (working_dir == -4)
             {
                 strcpy(spec_shm, "ERROR");
                 return 5;
             }
-            else if (working_dir == 0xffffffff || type != 1)
+            else if (working_dir == -1 || type != 1)
             {
                 strcpy(spec_shm, "rmdir: 目录不存在！");
                 return 25;
             }
+            assert(working_dir < (uint32_t)-4);
         }
         else // 说明已经是最后一个目录。
         {
@@ -660,16 +690,19 @@ uint16_t rd(const msg_t *const msg)
                 strcpy(spec_shm, "rmdir: 目录不存在！");
                 return 25;
             }
-            uint32_t ino = search(working_dir, cmd_dir + l, NULL, true, force);
+            uint32_t ino = search(working_dir, msg->uid, cmd_dir + l, NULL, true, force);
             switch (ino)
             {
-            case 0xffffffff:
+            case -1:
                 strcpy(spec_shm, "rmdir: 目录不存在！");
                 return 25;
-            case 0xfffffffe:
+            case -2:
+                strcpy(spec_shm, "rmdir: 权限不足！");
+                return 22;
+            case -3:
                 strcpy(spec_shm, "rmdir: 目录不为空，可添加 -f 参数强制删除！");
                 return 59;
-            case 0xfffffffd:
+            case -4:
                 strcpy(spec_shm, "ERROR");
                 return 5;
             default:
@@ -735,13 +768,13 @@ uint16_t newfile(const msg_t *const msg)
             memset(filename, 0, FILE_NAME_LEN);
             strncpy(filename, cmd_dir + l, r - l);
             uint32_t type;
-            working_dir = search(working_dir, filename, &type, false, false);
-            if (working_dir == 0xfffffffe)
+            working_dir = search(working_dir, msg->uid, filename, &type, false, false);
+            if (working_dir == -4)
             {
                 strcpy(spec_shm, "ERROR");
                 return 5;
             }
-            else if (working_dir == 0xffffffff || type != 1)
+            else if (working_dir == -1 || type != 1)
             {
                 strcpy(spec_shm, "newfile: 目录不存在！");
                 return 27;
@@ -759,34 +792,37 @@ uint16_t newfile(const msg_t *const msg)
                 strcpy(spec_shm, "newfile:文件名过长！");
                 return 26;
             }
-            uint32_t ino = search(working_dir, cmd_dir + l, NULL, false, false);
-            if (ino == 0xfffffffd)
+            uint32_t ino = search(working_dir, msg->uid, cmd_dir + l, NULL, false, false);
+            if (ino == -4)
             {
                 strcpy(spec_shm, "ERROR");
                 return 5;
             }
-            else if (ino < 0xfffffffd)
+            else if (ino < (uint32_t)-4)
             {
                 strcpy(spec_shm, "newfile: 文件已存在！");
                 return 27;
             }
             else
             {
-                assert(ino == 0xffffffff);
+                assert(ino == (uint32_t)-1);
                 int ret = create_file(working_dir, msg->uid, 0, cmd_dir + l);
-                if (ret == -1)
+                switch (ret)
                 {
+                case -1:
+                    strcpy(spec_shm, "newfile: 权限不足！");
+                    return 24;
+                case -2:
                     strcpy(spec_shm, "newfile: 目录容量不足！");
                     return 30;
-                }
-                else if (ret == -2)
-                {
+                case -3:
                     strcpy(spec_shm, "ERROR");
                     return 5;
+                default:
+                    assert(ret == 0);
+                    break;
                 }
-                assert(ret == 0);
             }
-
             break;
         }
         r++;
@@ -834,13 +870,13 @@ uint16_t rm(const msg_t *const msg)
             memset(filename, 0, FILE_NAME_LEN);
             strncpy(filename, cmd_dir + l, r - l);
             uint32_t type;
-            working_dir = search(working_dir, filename, &type, false, false);
-            if (working_dir == 0xfffffffe)
+            working_dir = search(working_dir, msg->uid, filename, &type, false, false);
+            if (working_dir == -4)
             {
                 strcpy(spec_shm, "ERROR");
                 return 5;
             }
-            else if (working_dir == 0xffffffff || type != 1)
+            else if (working_dir == -1 || type != 1)
             {
                 strcpy(spec_shm, "rm: 文件不存在！");
                 return 22;
@@ -853,16 +889,17 @@ uint16_t rm(const msg_t *const msg)
                 strcpy(spec_shm, "rm: 文件不存在！");
                 return 22;
             }
-            uint32_t ino = search(working_dir, cmd_dir + l, NULL, true, false);
+            uint32_t ino = search(working_dir, msg->uid, cmd_dir + l, NULL, true, false);
             switch (ino)
             {
-            case 0xffffffff:
+            case -1:
                 strcpy(spec_shm, "rm: 文件不存在！");
                 return 22;
-            case 0xfffffffd:
+            case -4:
                 strcpy(spec_shm, "ERROR");
                 return 5;
             default:
+                assert(ino < (uint32_t)-4);
                 int ret = remove_file(ino, msg->uid);
                 switch (ret)
                 {
@@ -887,6 +924,113 @@ uint16_t rm(const msg_t *const msg)
     }
 
     return 0; // 若未出错， rm 不会有字符进入缓冲区。
+}
+
+uint16_t cat(const msg_t *const msg)
+{
+    void *spec_shm = spec_shms[msg->uid];
+
+    uint32_t page = 0;
+    char cmd_dir[CMD_LEN - 3];
+    if (!strncmp(msg->cmd + 4, "-p", 2))
+    {
+        uint8_t i = 6;
+        while (true)
+        {
+            char c = *(msg->cmd + (++i));
+            if (!('0' <= c && c <= '9'))
+                break;
+            page = page * 10 + c - '0';
+        }
+        strcpy(cmd_dir, msg->cmd + i);
+    }
+    else
+        strcpy(cmd_dir, msg->cmd + 4);
+
+    uint8_t cmd_dir_len = strlen(cmd_dir);
+
+    uint8_t l = 0, r = 0;
+    uint32_t working_dir = working_dirs[msg->uid];
+    if (cmd_dir[0] == '/')
+    {
+        working_dir = 0;
+        l = r = 1;
+    }
+    if (cmd_dir[cmd_dir_len - 1] == '/')
+        cmd_dir[--cmd_dir_len] = 0;
+
+    // 逐一分解 cmd_dir 中出现的目录。
+    while (1)
+    {
+        while (r < cmd_dir_len && cmd_dir[r] != '/')
+            r++;
+        if (r < cmd_dir_len)
+        {
+            if (r - l > FILE_NAME_LEN)
+            {
+                strcpy(spec_shm, "cat: 文件不存在！");
+                return 23;
+            }
+            char filename[FILE_NAME_LEN];
+            memset(filename, 0, FILE_NAME_LEN);
+            strncpy(filename, cmd_dir + l, r - l);
+            uint32_t type;
+            working_dir = search(working_dir, msg->uid, filename, &type, false, false);
+            if (working_dir == -4)
+            {
+                strcpy(spec_shm, "ERROR");
+                return 5;
+            }
+            else if (working_dir == -1 || type != 1)
+            {
+                strcpy(spec_shm, "cat: 文件不存在！");
+                return 23;
+            }
+        }
+        else // 说明已经是最后一个目录。
+        {
+            if (r - l > FILE_NAME_LEN)
+            {
+                strcpy(spec_shm, "cat: 文件不存在！");
+                return 23;
+            }
+            uint32_t ino = search(working_dir, msg->uid, cmd_dir + l, NULL, false, false);
+            switch (ino)
+            {
+            case -1:
+                strcpy(spec_shm, "cat: 文件不存在！");
+                return 23;
+            case -4:
+                strcpy(spec_shm, "ERROR");
+                return 5;
+            default:
+                assert(ino < (uint32_t)-4);
+                int ret = read_file(ino, msg->uid, page);
+                switch (ret)
+                {
+                case -1:
+                    strcpy(spec_shm, "cat: 权限不足！");
+                    return 20;
+                case -2:
+                    strcpy(spec_shm, "cat: 目标为目录！");
+                    return 23;
+                case -3:
+                    strcpy(spec_shm, "cat: 访问内容超出文件大小！");
+                    return 38;
+                case -4:
+                    strcpy(spec_shm, "ERROR");
+                    return 5;
+                default:
+                    assert(ret == 0);
+                    break;
+                }
+            }
+            break;
+        }
+        r++;
+        l = r;
+    }
+    return BLOCK_SIZE;
 }
 
 uint16_t unknown(uint32_t uid)

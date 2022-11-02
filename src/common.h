@@ -135,6 +135,11 @@ typedef struct
     direntry_t direntries[DIR_ENTRY_PER_DIRECT_BLOCK];
 } dirblock_t;
 
+typedef struct
+{
+    uint8_t data[BLOCK_SIZE];
+} datablock_t;
+
 extern superblock_t sb;
 
 uint64_t get_timestamp();

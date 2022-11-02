@@ -71,7 +71,7 @@ int mkroot()
     inode.ctime = (uint32_t)time(NULL);
     inode.wtime = (uint32_t)time(NULL);
     inode.uid = 0;
-    inode.privilege = 066;
+    inode.privilege = 077;
 
     // 保存自身
     inode.size = 2;

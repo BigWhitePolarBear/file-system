@@ -20,4 +20,6 @@ uint16_t newfile(const msg_t *const msg);
 
 uint16_t rm(const msg_t *const msg);
 
+uint16_t cat(const msg_t *const msg);
+
 uint16_t unknown(uint32_t uid);
