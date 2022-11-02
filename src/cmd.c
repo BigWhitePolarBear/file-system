@@ -186,7 +186,7 @@ void handle_msg()
     }
 }
 
-void handle_cmd(msg_t *msg)
+void handle_cmd(const msg_t *const msg)
 {
     void *spec_shm = spec_shms[msg->uid];
     memset(spec_shm, 0, last_spec_shm_pos[msg->uid]);

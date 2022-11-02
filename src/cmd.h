@@ -31,4 +31,4 @@ typedef struct
 
 // 通过输入共享内存获取命令。
 void handle_msg();
-void handle_cmd(msg_t *msg);
+void handle_cmd(const msg_t *const msg);

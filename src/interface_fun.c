@@ -117,7 +117,7 @@ uint16_t info(uint32_t uid)
     return i;
 }
 
-uint16_t cd(msg_t *msg)
+uint16_t cd(const msg_t *const msg)
 {
     void *spec_shm = spec_shms[msg->uid];
 
@@ -428,7 +428,7 @@ uint16_t ls(uint32_t uid, bool detial)
     return i;
 }
 
-uint16_t md(msg_t *msg)
+uint16_t md(const msg_t *const msg)
 {
     void *spec_shm = spec_shms[msg->uid];
 
@@ -521,7 +521,7 @@ uint16_t md(msg_t *msg)
     return 0; // 若未出错， mkdir 不会有字符进入缓冲区。
 }
 
-uint16_t rd(msg_t *msg)
+uint16_t rd(const msg_t *const msg)
 {
     bool force = false;
     void *spec_shm = spec_shms[msg->uid];
@@ -636,7 +636,7 @@ uint16_t rd(msg_t *msg)
     return 0; // 若未出错， rmdir 不会有字符进入缓冲区。
 }
 
-uint16_t newfile(msg_t *msg)
+uint16_t newfile(const msg_t *const msg)
 {
     void *spec_shm = spec_shms[msg->uid];
 
