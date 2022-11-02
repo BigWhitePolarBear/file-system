@@ -795,6 +795,100 @@ uint16_t newfile(const msg_t *const msg)
     return 0; // 若未出错， rmdir 不会有字符进入缓冲区。
 }
 
+uint16_t rm(const msg_t *const msg)
+{
+    void *spec_shm = spec_shms[msg->uid];
+
+    char cmd_dir[CMD_LEN - 3];
+    // 不会出现 else 场景，以下写法为了代码可读性。
+    if (!strncmp(msg->cmd, "rm", 2))
+        strcpy(cmd_dir, msg->cmd + 3);
+    else if (!strncmp(msg->cmd, "del", 3))
+        strcpy(cmd_dir, msg->cmd + 4);
+
+    uint8_t cmd_dir_len = strlen(cmd_dir);
+
+    uint8_t l = 0, r = 0;
+    uint32_t working_dir = working_dirs[msg->uid];
+    if (cmd_dir[0] == '/')
+    {
+        working_dir = 0;
+        l = r = 1;
+    }
+    if (cmd_dir[cmd_dir_len - 1] == '/')
+        cmd_dir[--cmd_dir_len] = 0;
+
+    // 逐一分解 cmd_dir 中出现的目录。
+    while (1)
+    {
+        while (r < cmd_dir_len && cmd_dir[r] != '/')
+            r++;
+        if (r < cmd_dir_len)
+        {
+            if (r - l > FILE_NAME_LEN)
+            {
+                strcpy(spec_shm, "rm: 文件不存在！");
+                return 22;
+            }
+            char filename[FILE_NAME_LEN];
+            memset(filename, 0, FILE_NAME_LEN);
+            strncpy(filename, cmd_dir + l, r - l);
+            uint32_t type;
+            working_dir = search(working_dir, filename, &type, false, false);
+            if (working_dir == 0xfffffffe)
+            {
+                strcpy(spec_shm, "ERROR");
+                return 5;
+            }
+            else if (working_dir == 0xffffffff || type != 1)
+            {
+                strcpy(spec_shm, "rm: 文件不存在！");
+                return 22;
+            }
+        }
+        else // 说明已经是最后一个目录。
+        {
+            if (r - l > FILE_NAME_LEN)
+            {
+                strcpy(spec_shm, "rm: 文件不存在！");
+                return 22;
+            }
+            uint32_t ino = search(working_dir, cmd_dir + l, NULL, true, false);
+            switch (ino)
+            {
+            case 0xffffffff:
+                strcpy(spec_shm, "rm: 文件不存在！");
+                return 22;
+            case 0xfffffffd:
+                strcpy(spec_shm, "ERROR");
+                return 5;
+            default:
+                int ret = remove_file(ino, msg->uid);
+                switch (ret)
+                {
+                case -1:
+                    strcpy(spec_shm, "rm: 权限不足！");
+                    return 19;
+                case -2:
+                    strcpy(spec_shm, "rm: 目标为目录！");
+                    return 22;
+                case -3:
+                    strcpy(spec_shm, "ERROR");
+                    return 5;
+                default:
+                    assert(ret == 0);
+                    break;
+                }
+            }
+            break;
+        }
+        r++;
+        l = r;
+    }
+
+    return 0; // 若未出错， rm 不会有字符进入缓冲区。
+}
+
 uint16_t unknown(uint32_t uid)
 {
     uint32_t i = 0;

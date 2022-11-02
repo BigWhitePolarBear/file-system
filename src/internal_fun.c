@@ -686,76 +686,179 @@ int remove_file(uint32_t ino, uint32_t uid)
         return -1;
     if (inode.type == 1)
         return -2;
+    assert(inode.type == 0);
+    assert(inode.bcnt <= DIRECT_DATA_BLOCK_CNT + INDIRECT_DATA_BLOCK_CNT + DOUBLE_INDIRECT_DATA_BLOCK_CNT +
+                             TRIPLE_INDIRECT_BDATA_BLOCK_CNT);
 
-    // for (uint32_t i = 0; i < inode.bcnt;)
-    // {
-    //     if (i < DIRECT_BLOCK_CNT)
-    //         unset_data_bitmap(inode.direct_blocks[i++]);
-    //     else if (i - INDIRECT_DATA_BLOCK_OFFSET < INDIRECT_DATA_BLOCK_CNT)
-    //     {
-    //         indirectblock_t indirectb;
-    //     }
-    //     else if ((j - DOUBLE_INDIRECT_DIR_OFFSET) < DOUBLE_INDIRECT_DIR_ENTRY_CNT)
-    //     {
-    //         if ((j - DOUBLE_INDIRECT_DIR_OFFSET) % DIR_ENTRY_PER_DOUBLE_INDIRECT_BLOCK == 0)
-    //             if (bread(dir_inode.double_indirect_blocks[(j - DOUBLE_INDIRECT_DIR_OFFSET) /
-    //                                                        DIR_ENTRY_PER_DOUBLE_INDIRECT_BLOCK],
-    //                       &double_indirectb))
-    //             {
-    //                 printf("读取目录中间块失败！\n");
-    //                 return 0xfffffffe;
-    //             }
-    //         if ((j - DOUBLE_INDIRECT_DIR_OFFSET) % DIR_ENTRY_PER_INDIRECT_BLOCK == 0)
-    //             if (bread(double_indirectb.blocks[(j - DOUBLE_INDIRECT_DIR_OFFSET) / DIR_ENTRY_PER_INDIRECT_BLOCK],
-    //                       &indirectb))
-    //             {
-    //                 printf("读取目录中间块失败！\n");
-    //                 return 0xfffffffe;
-    //             }
-    //         if (bread(indirectb.blocks[(j - DOUBLE_INDIRECT_DIR_OFFSET) / DIRECT_DIR_ENTRY_CNT], &db))
-    //         {
-    //             printf("读取目录块失败！\n");
-    //             return 0xfffffffe;
-    //         }
-    //     }
-    //     else if ((j - TRIPLE_INDIRECT_DIR_OFFSET) < TRIPLE_INDIRECT_DIR_ENTRY_CNT)
-    //     {
-    //         if ((j - TRIPLE_INDIRECT_DIR_OFFSET) / DIR_ENTRY_PER_TRIPLE_INDIRECT_BLOCK == 0)
-    //             if (bread(dir_inode.triple_indirect_blocks[(j - TRIPLE_INDIRECT_DIR_OFFSET) /
-    //                                                        DIR_ENTRY_PER_TRIPLE_INDIRECT_BLOCK],
-    //                       &triple_indiectb))
-    //             {
-    //                 printf("读取目录中间块失败！\n");
-    //                 return 0xfffffffe;
-    //             }
-    //         if ((j - TRIPLE_INDIRECT_DIR_OFFSET) % DIR_ENTRY_PER_DOUBLE_INDIRECT_BLOCK == 0)
-    //             if (bread(
-    //                     triple_indiectb.blocks[(j - TRIPLE_INDIRECT_DIR_OFFSET) /
-    //                     DIR_ENTRY_PER_DOUBLE_INDIRECT_BLOCK], &double_indirectb))
-    //             {
-    //                 printf("读取目录中间块失败！\n");
-    //                 return 0xfffffffe;
-    //             }
-    //         if ((j - TRIPLE_INDIRECT_DIR_OFFSET) % DIR_ENTRY_PER_INDIRECT_BLOCK == 0)
-    //             if (bread(double_indirectb.blocks[(j - TRIPLE_INDIRECT_DIR_OFFSET) / DIR_ENTRY_PER_INDIRECT_BLOCK],
-    //                       &indirectb))
-    //             {
-    //                 printf("读取目录中间块失败！\n");
-    //                 return 0xfffffffe;
-    //             }
-    //         if (bread(indirectb.blocks[(j - TRIPLE_INDIRECT_DIR_OFFSET) / DIRECT_DIR_ENTRY_CNT], &db))
-    //         {
-    //             printf("读取目录块失败！\n");
-    //             return 0xfffffffe;
-    //         }
-    //     }
-    // }
-    // if (!strcmp(db.direntries[j % DIR_ENTRY_PER_DIRECT_BLOCK].name, filename))
-    // {
-    //     if (type != NULL)
-    //         *type = db.direntries[j % DIR_ENTRY_PER_DIRECT_BLOCK].type;
-    //     return db.direntries[j % DIR_ENTRY_PER_DIRECT_BLOCK].ino;
-    //}
+    if (inode.bcnt == 0 && unset_inode_bitmap(ino)) // 文件为空。
+    {
+        printf("修改 inode bitmap 失败！\n");
+        return -3;
+    }
+    else
+    {
+        indirectblock_t indirectb, double_indirectb, triple_indiectb;
+        uint32_t indirectbno = 0, double_indirectbno = 0, triple_indirectbno = 0;
+        for (uint32_t i = 0; i < inode.bcnt; i++)
+        {
+            if (i < DIRECT_DATA_BLOCK_CNT)
+            {
+                if (unset_data_bitmap(inode.direct_blocks[i]))
+                {
+                    printf("修改数据块位图失败！\n");
+                    return -3;
+                }
+            }
+            else if (i - INDIRECT_DATA_BLOCK_OFFSET < INDIRECT_DATA_BLOCK_CNT)
+            {
+                if ((i - INDIRECT_DATA_BLOCK_OFFSET) % DATA_BLOCK_PER_INDIRECT_BLOCK == 0)
+                {
+                    if (indirectbno && unset_data_bitmap(indirectbno))
+                    {
+                        printf("修改数据块位图失败！\n");
+                        return -3;
+                    }
+                    if (bread(inode.indirect_blocks[(i - INDIRECT_DIR_OFFSET) / DIR_ENTRY_PER_INDIRECT_BLOCK],
+                              &indirectb))
+                    {
+                        printf("读取目录中间块失败！\n");
+                        return -3;
+                    }
+                    indirectbno = inode.indirect_blocks[(i - INDIRECT_DIR_OFFSET) / DIR_ENTRY_PER_INDIRECT_BLOCK];
+                }
+                if (unset_data_bitmap(indirectb.blocks[(i - INDIRECT_DIR_OFFSET) % DIR_ENTRY_PER_INDIRECT_BLOCK /
+                                                       DIRECT_DIR_ENTRY_CNT]))
+                {
+                    printf("修改数据块位图失败！\n");
+                    return -3;
+                }
+            }
+            else if ((i - DOUBLE_INDIRECT_DIR_OFFSET) < DOUBLE_INDIRECT_DIR_ENTRY_CNT)
+            {
+                if ((i - DOUBLE_INDIRECT_DIR_OFFSET) % DIR_ENTRY_PER_DOUBLE_INDIRECT_BLOCK == 0)
+                {
+                    if (double_indirectbno && unset_data_bitmap(double_indirectbno))
+                    {
+                        printf("修改数据块位图失败！\n");
+                        return -3;
+                    }
+                    if (bread(inode.double_indirect_blocks[(i - DOUBLE_INDIRECT_DIR_OFFSET) /
+                                                           DIR_ENTRY_PER_DOUBLE_INDIRECT_BLOCK],
+                              &double_indirectb))
+                    {
+                        printf("读取二级目录中间块失败！\n");
+                        return -3;
+                    }
+                    double_indirectbno = inode.double_indirect_blocks[(i - DOUBLE_INDIRECT_DIR_OFFSET) /
+                                                                      DIR_ENTRY_PER_DOUBLE_INDIRECT_BLOCK];
+                }
+                if ((i - DOUBLE_INDIRECT_DIR_OFFSET) % DIR_ENTRY_PER_INDIRECT_BLOCK == 0)
+                {
+                    if (indirectbno && unset_data_bitmap(indirectbno))
+                    {
+                        printf("修改数据块位图失败！\n");
+                        return -3;
+                    }
+                    if (bread(
+                            double_indirectb.blocks[(i - DOUBLE_INDIRECT_DIR_OFFSET) %
+                                                    DIR_ENTRY_PER_DOUBLE_INDIRECT_BLOCK / DIR_ENTRY_PER_INDIRECT_BLOCK],
+                            &indirectb))
+                    {
+                        printf("读取目录中间块失败！\n");
+                        return -3;
+                    }
+                    indirectbno =
+                        double_indirectb.blocks[(i - DOUBLE_INDIRECT_DIR_OFFSET) % DIR_ENTRY_PER_DOUBLE_INDIRECT_BLOCK /
+                                                DIR_ENTRY_PER_INDIRECT_BLOCK];
+                }
+                if (unset_data_bitmap(indirectb.blocks[(i - DOUBLE_INDIRECT_DIR_OFFSET) % DIR_ENTRY_PER_INDIRECT_BLOCK /
+                                                       DIRECT_DIR_ENTRY_CNT]))
+                {
+                    printf("修改数据块位图失败！\n");
+                    return -3;
+                }
+            }
+            else
+            {
+                if ((i - TRIPLE_INDIRECT_DIR_OFFSET) % DIR_ENTRY_PER_TRIPLE_INDIRECT_BLOCK == 0)
+                {
+                    if (triple_indirectbno && unset_data_bitmap(triple_indirectbno))
+                    {
+                        printf("修改数据块位图失败！\n");
+                        return -3;
+                    }
+                    if (bread(inode.triple_indirect_blocks[(i - TRIPLE_INDIRECT_DIR_OFFSET) /
+                                                           DIR_ENTRY_PER_TRIPLE_INDIRECT_BLOCK],
+                              &triple_indiectb))
+                    {
+                        printf("读取三级目录中间块失败！\n");
+                        return -3;
+                    }
+                    triple_indirectbno = inode.triple_indirect_blocks[(i - TRIPLE_INDIRECT_DIR_OFFSET) /
+                                                                      DIR_ENTRY_PER_TRIPLE_INDIRECT_BLOCK];
+                }
+                if ((i - TRIPLE_INDIRECT_DIR_OFFSET) % DIR_ENTRY_PER_DOUBLE_INDIRECT_BLOCK == 0)
+                {
+                    if (double_indirectbno && unset_data_bitmap(double_indirectbno))
+                    {
+                        printf("修改数据块位图失败！\n");
+                        return -3;
+                    }
+                    if (bread(triple_indiectb
+                                  .blocks[(i - TRIPLE_INDIRECT_DIR_OFFSET) % DIR_ENTRY_PER_TRIPLE_INDIRECT_BLOCK /
+                                          DIR_ENTRY_PER_DOUBLE_INDIRECT_BLOCK],
+                              &double_indirectb))
+                    {
+                        printf("读取二级目录中间块失败！\n");
+                        return -3;
+                    }
+                    double_indirectbno =
+                        triple_indiectb.blocks[(i - TRIPLE_INDIRECT_DIR_OFFSET) % DIR_ENTRY_PER_TRIPLE_INDIRECT_BLOCK /
+                                               DIR_ENTRY_PER_DOUBLE_INDIRECT_BLOCK];
+                }
+                if ((i - TRIPLE_INDIRECT_DIR_OFFSET) % DIR_ENTRY_PER_INDIRECT_BLOCK == 0)
+                {
+                    if (indirectbno && unset_data_bitmap(indirectbno))
+                    {
+                        printf("修改数据块位图失败！\n");
+                        return -3;
+                    }
+                    if (bread(
+                            double_indirectb.blocks[(i - TRIPLE_INDIRECT_DIR_OFFSET) %
+                                                    DIR_ENTRY_PER_DOUBLE_INDIRECT_BLOCK / DIR_ENTRY_PER_INDIRECT_BLOCK],
+                            &indirectb))
+                    {
+                        printf("读取目录中间块失败！\n");
+                        return -3;
+                    }
+                    indirectbno =
+                        double_indirectb.blocks[(i - TRIPLE_INDIRECT_DIR_OFFSET) % DIR_ENTRY_PER_DOUBLE_INDIRECT_BLOCK /
+                                                DIR_ENTRY_PER_INDIRECT_BLOCK];
+                }
+                if (unset_data_bitmap(indirectb.blocks[(i - TRIPLE_INDIRECT_DIR_OFFSET) % DIR_ENTRY_PER_INDIRECT_BLOCK /
+                                                       DIRECT_DIR_ENTRY_CNT]))
+                {
+                    printf("修改数据块位图失败！\n");
+                    return -3;
+                }
+            }
+        }
+        if (indirectbno && unset_data_bitmap(indirectbno))
+        {
+            printf("修改数据块位图失败！\n");
+            return -3;
+        }
+        if (double_indirectbno && unset_data_bitmap(double_indirectbno))
+        {
+            printf("修改数据块位图失败！\n");
+            return -3;
+        }
+        if (triple_indirectbno && unset_data_bitmap(triple_indirectbno))
+        {
+            printf("修改数据块位图失败！\n");
+            return -3;
+        }
+    }
 
     return 0;
 }
@@ -768,13 +871,14 @@ int remove_dir(uint32_t ino, uint32_t uid)
         printf("读取 inode 失败！\n");
         return -3;
     }
-
     if (inode.uid != 0 && inode.uid != uid && (inode.privilege & 002) == 0)
         return -1;
     if (inode.type == 0)
         return -2;
-
     assert(inode.size >= 2);
+    assert(inode.size <= DIRECT_DIR_ENTRY_CNT + INDIRECT_DIR_ENTRY_CNT + DOUBLE_INDIRECT_DIR_ENTRY_CNT +
+                             TRIPLE_INDIRECT_DIR_ENTRY_CNT);
+
     if (inode.size == 2) // 目录为空。
     {
         if (unset_data_bitmap(inode.direct_blocks[0]))
@@ -892,7 +996,7 @@ int remove_dir(uint32_t ino, uint32_t uid)
                     dbno = indirectb.blocks[(i - DOUBLE_INDIRECT_DIR_OFFSET) % DIR_ENTRY_PER_INDIRECT_BLOCK /
                                             DIRECT_DIR_ENTRY_CNT];
                 }
-                else if ((i - TRIPLE_INDIRECT_DIR_OFFSET) < TRIPLE_INDIRECT_DIR_ENTRY_CNT)
+                else
                 {
                     if ((i - TRIPLE_INDIRECT_DIR_OFFSET) % DIR_ENTRY_PER_TRIPLE_INDIRECT_BLOCK == 0)
                     {

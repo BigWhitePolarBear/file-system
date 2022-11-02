@@ -18,4 +18,6 @@ uint16_t rd(const msg_t *const msg);
 
 uint16_t newfile(const msg_t *const msg);
 
+uint16_t rm(const msg_t *const msg);
+
 uint16_t unknown(uint32_t uid);

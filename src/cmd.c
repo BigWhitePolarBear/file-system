@@ -193,16 +193,18 @@ void handle_cmd(const msg_t *const msg)
 
     if (!strncmp(msg->cmd, "info", 4))
         last_spec_shm_pos[msg->uid] = info(msg->uid);
+    else if (!strncmp(msg->cmd, "cd", 2))
+        last_spec_shm_pos[msg->uid] = cd(msg);
     else if (!strncmp(msg->cmd, "ls", 2) || !strncmp(msg->cmd, "dir", 3))
         last_spec_shm_pos[msg->uid] = ls(msg);
     else if (!strncmp(msg->cmd, "mkdir", 5) || !strncmp(msg->cmd, "md", 2))
         last_spec_shm_pos[msg->uid] = md(msg);
-    else if (!strncmp(msg->cmd, "cd", 2))
-        last_spec_shm_pos[msg->uid] = cd(msg);
     else if (!strncmp(msg->cmd, "rd", 2) || !strncmp(msg->cmd, "rmdir", 5))
         last_spec_shm_pos[msg->uid] = rd(msg);
     else if (!strncmp(msg->cmd, "newfile", 7))
         last_spec_shm_pos[msg->uid] = newfile(msg);
+    else if (!strncmp(msg->cmd, "rm", 2) || !strncmp(msg->cmd, "del", 3))
+        last_spec_shm_pos[msg->uid] = rm(msg);
     else
         last_spec_shm_pos[msg->uid] = unknown(msg->uid);
 
