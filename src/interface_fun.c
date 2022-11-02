@@ -144,7 +144,7 @@ uint16_t cd(const msg_t *const msg)
     {
         while (r < cmd_dir_len && cmd_dir[r] != '/')
             r++;
-        if (r < cmd_dir_len - 1)
+        if (r < cmd_dir_len)
         {
             if (r - l > FILE_NAME_LEN)
             {
@@ -169,8 +169,6 @@ uint16_t cd(const msg_t *const msg)
         }
         else // 说明已经是最后一个目录。
         {
-            if (cmd_dir[r] == '/')
-                cmd_dir[r--] = 0;
             if (r - l > FILE_NAME_LEN)
             {
                 strcpy(spec_shm, "cd: 目录不存在！");
@@ -198,12 +196,81 @@ uint16_t cd(const msg_t *const msg)
     return 0; // 若未出错， cd 不会有字符进入缓冲区。
 }
 
-uint16_t ls(uint32_t uid, bool detial)
+uint16_t ls(const msg_t *const msg)
 {
     uint32_t i = 0;
-    void *spec_shm = spec_shms[uid];
+    void *spec_shm = spec_shms[msg->uid];
+
+    char cmd_dir[CMD_LEN - 3];
+    bool detail;
+    if (!strncmp(msg->cmd, "ls", 2))
+    {
+        if ((detail = !strncmp(msg->cmd + 3, "-l", 2)))
+            strcpy(cmd_dir, msg->cmd + 6);
+        else
+            strcpy(cmd_dir, msg->cmd + 3);
+    }
+    else if (!strncmp(msg->cmd, "dir", 3))
+    {
+        if ((detail = !strncmp(msg->cmd + 4, "-s", 2)))
+            strcpy(cmd_dir, msg->cmd + 7);
+        else
+            strcpy(cmd_dir, msg->cmd + 4);
+    }
+    uint8_t cmd_dir_len = strlen(cmd_dir);
+    uint32_t working_dir = working_dirs[msg->uid];
+    if (cmd_dir_len == 0)
+        goto GetInfo;
+
+    uint8_t l = 0, r = 0;
+    if (cmd_dir[0] == '/')
+    {
+        if (cmd_dir_len == 1)
+        {
+            working_dirs[msg->uid] = 0;
+            return 0;
+        }
+        working_dir = 0;
+        l = r = 1;
+    }
+    if (cmd_dir[cmd_dir_len - 1] == '/')
+        cmd_dir[--cmd_dir_len] = 0;
+
+    // 逐一分解 cmd_dir 中出现的目录。
+    while (1)
+    {
+        while (r < cmd_dir_len && cmd_dir[r] != '/')
+            r++;
+
+        if (r - l > FILE_NAME_LEN)
+        {
+            strcpy(spec_shm, "ls: 目录不存在！");
+            return 22;
+        }
+        char filename[FILE_NAME_LEN];
+        memset(filename, 0, FILE_NAME_LEN);
+        strncpy(filename, cmd_dir + l, r - l);
+        uint32_t type;
+        working_dir = search(working_dir, filename, &type, false, false);
+        if (working_dir == 0xfffffffd)
+        {
+            strcpy(spec_shm, "ERROR");
+            return 5;
+        }
+        else if (working_dir == 0xffffffff || type != 1)
+        {
+            strcpy(spec_shm, "ls: 目录不存在！");
+            return 22;
+        }
+
+        if (r == cmd_dir_len)
+            break;
+        r++;
+        l = r;
+    }
+GetInfo:
     inode_t dir_inode;
-    if (iread(working_dirs[uid], &dir_inode))
+    if (iread(working_dir, &dir_inode))
     {
         printf("读取 inode 失败！\n");
         strcpy(spec_shm + i, "ERROR");
@@ -316,7 +383,7 @@ uint16_t ls(uint32_t uid, bool detial)
                 }
             }
         }
-        if (detial)
+        if (detail)
         {
             uint32_t ino = db.direntries[j % DIR_ENTRY_PER_DIRECT_BLOCK].ino;
             inode_t inode;
@@ -455,7 +522,7 @@ uint16_t md(const msg_t *const msg)
     {
         while (r < cmd_dir_len && cmd_dir[r] != '/')
             r++;
-        if (r < cmd_dir_len - 1)
+        if (r < cmd_dir_len)
         {
             if (r - l > FILE_NAME_LEN)
             {
@@ -467,7 +534,7 @@ uint16_t md(const msg_t *const msg)
             strncpy(filename, cmd_dir + l, r - l);
             uint32_t type;
             working_dir = search(working_dir, filename, &type, false, false);
-            if (working_dir == 0xfffffffe)
+            if (working_dir == 0xfffffffd)
             {
                 strcpy(spec_shm, "ERROR");
                 return 5;
@@ -480,8 +547,6 @@ uint16_t md(const msg_t *const msg)
         }
         else // 说明已经是最后一个目录。
         {
-            if (cmd_dir[r] == '/')
-                cmd_dir[r--] = 0;
             if (r - l > FILE_NAME_LEN)
             {
                 strcpy(spec_shm, "mkdir: 目录名过长！");
@@ -565,7 +630,7 @@ uint16_t rd(const msg_t *const msg)
     {
         while (r < cmd_dir_len && cmd_dir[r] != '/')
             r++;
-        if (r < cmd_dir_len - 1)
+        if (r < cmd_dir_len)
         {
             if (r - l > FILE_NAME_LEN)
             {
@@ -590,8 +655,6 @@ uint16_t rd(const msg_t *const msg)
         }
         else // 说明已经是最后一个目录。
         {
-            if (cmd_dir[r] == '/')
-                cmd_dir[r--] = 0;
             if (r - l > FILE_NAME_LEN)
             {
                 strcpy(spec_shm, "rmdir: 目录不存在！");
@@ -661,7 +724,7 @@ uint16_t newfile(const msg_t *const msg)
     {
         while (r < cmd_dir_len && cmd_dir[r] != '/')
             r++;
-        if (r < cmd_dir_len - 1)
+        if (r < cmd_dir_len)
         {
             if (r - l > FILE_NAME_LEN)
             {
@@ -686,8 +749,6 @@ uint16_t newfile(const msg_t *const msg)
         }
         else // 说明已经是文件名。
         {
-            if (cmd_dir[r] == '/')
-                cmd_dir[r--] = 0;
             if (r == l)
             {
                 strcpy(spec_shm, "newfile:文件名不能为空！");

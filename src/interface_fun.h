@@ -10,7 +10,7 @@ uint16_t info(uint32_t uid);
 
 uint16_t cd(const msg_t *const msg);
 
-uint16_t ls(uint32_t uid, bool detail);
+uint16_t ls(const msg_t *const msg);
 
 uint16_t md(const msg_t *const msg);
 
