@@ -3,6 +3,7 @@ set(File_System_SRC
   cmd.c
   common.c
   device.c
+  free.c
   interface_fun.c
   internal_fun.c
   format.c

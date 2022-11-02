@@ -138,3 +138,8 @@ typedef struct
 extern superblock_t sb;
 
 uint64_t get_timestamp();
+
+uint16_t uint2width(uint32_t num);
+
+// 只计算整数部分。
+uint16_t float2width(float num);

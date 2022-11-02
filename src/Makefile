@@ -264,6 +264,30 @@ format.c.s:
 	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/format.c.s
 .PHONY : format.c.s
 
+free.o: free.c.o
+.PHONY : free.o
+
+# target to build an object file
+free.c.o:
+	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/free.c.o
+.PHONY : free.c.o
+
+free.i: free.c.i
+.PHONY : free.i
+
+# target to preprocess a source file
+free.c.i:
+	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/free.c.i
+.PHONY : free.c.i
+
+free.s: free.c.s
+.PHONY : free.s
+
+# target to generate assembly for a file
+free.c.s:
+	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/free.c.s
+.PHONY : free.c.s
+
 interface_fun.o: interface_fun.c.o
 .PHONY : interface_fun.o
 
@@ -385,6 +409,9 @@ help:
 	@echo "... format.o"
 	@echo "... format.i"
 	@echo "... format.s"
+	@echo "... free.o"
+	@echo "... free.i"
+	@echo "... free.s"
 	@echo "... interface_fun.o"
 	@echo "... interface_fun.i"
 	@echo "... interface_fun.s"
