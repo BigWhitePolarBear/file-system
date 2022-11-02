@@ -18,9 +18,10 @@ int main()
     }
 
     msg_t msg;
+    uint32_t uid;
     printf("请输入用户 id ：");
-    scanf("%u", &msg.uid);
-    if (msg.uid >= MAX_USER_CNT)
+    scanf("%u", &uid);
+    if (uid >= MAX_USER_CNT)
     {
         printf("非法用户 id ！\n");
         return -1;
@@ -28,6 +29,7 @@ int main()
     printf("请输入用户密码：");
     char pwd[PWD_LEN];
     scanf("%s", pwd);
+    msg.session_id = uid;
     strcpy(msg.cmd, "LOGIN ");
     strcpy(msg.cmd + 6, pwd);
     // 先发送 id 和密码完成登录。
@@ -38,7 +40,7 @@ int main()
     memcpy(&msg, shm, SHM_SIZE);
     if (strncmp(msg.cmd, "SUCCESS", 7))
     {
-        printf("密码错误！\n");
+        printf("密码错误或登录会话过多！\n");
         sem_post(mutex);
         return -1;
     }
@@ -308,8 +310,13 @@ int handle_input(msg_t *msg)
         free(t);
     }
 
-    if (msg->uid == 0 && !strncmp(msg->cmd, "shutdown", 8))
+    if (session_id2uid(msg->session_id) == 0 && !strncmp(msg->cmd, "shutdown", 8))
         return -1;
 
     return cur->pre->len;
+}
+
+uint32_t session_id2uid(uint32_t session_id)
+{
+    return session_id / MAX_SESSION_PER_USER;
 }

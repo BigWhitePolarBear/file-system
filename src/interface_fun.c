@@ -119,19 +119,19 @@ uint16_t info(uint32_t uid)
 
 uint16_t cd(const msg_t *const msg)
 {
-    void *spec_shm = spec_shms[msg->uid];
+    void *spec_shm = spec_shms[session_id2uid(msg->session_id)];
 
     char cmd_dir[CMD_LEN - 3];
     strcpy(cmd_dir, msg->cmd + 3);
     uint8_t cmd_dir_len = strlen(cmd_dir);
 
     uint8_t l = 0, r = 0;
-    uint32_t working_dir = working_dirs[msg->uid];
+    uint32_t working_dir = working_dirs[session_id2uid(msg->session_id)];
     if (cmd_dir[0] == '/')
     {
         if (cmd_dir_len == 1)
         {
-            working_dirs[msg->uid] = 0;
+            working_dirs[session_id2uid(msg->session_id)] = 0;
             return 0;
         }
         working_dir = 0;
@@ -155,7 +155,7 @@ uint16_t cd(const msg_t *const msg)
             memset(filename, 0, FILE_NAME_LEN);
             strncpy(filename, cmd_dir + l, r - l);
             uint32_t type;
-            working_dir = search(working_dir, msg->uid, filename, &type, false, false);
+            working_dir = search(working_dir, session_id2uid(msg->session_id), filename, &type, false, false);
             if (working_dir == -4)
             {
                 strcpy(spec_shm, "ERROR");
@@ -174,7 +174,7 @@ uint16_t cd(const msg_t *const msg)
                 strcpy(spec_shm, "cd: 目录不存在！");
                 return 22;
             }
-            uint32_t ino = search(working_dir, msg->uid, cmd_dir + l, NULL, false, false);
+            uint32_t ino = search(working_dir, session_id2uid(msg->session_id), cmd_dir + l, NULL, false, false);
             if (ino == -4)
             {
                 strcpy(spec_shm, "ERROR");
@@ -196,13 +196,13 @@ uint16_t cd(const msg_t *const msg)
                     strcpy(spec_shm, "ERROR");
                     return 5;
                 }
-                if (!check_privilege(&inode, msg->uid, 1))
+                if (!check_privilege(&inode, session_id2uid(msg->session_id), 1))
                 {
                     strcpy(spec_shm, "cd: 权限不足！");
                     return 19;
                 }
 
-                working_dirs[msg->uid] = ino;
+                working_dirs[session_id2uid(msg->session_id)] = ino;
             }
 
             break;
@@ -216,7 +216,7 @@ uint16_t cd(const msg_t *const msg)
 uint16_t ls(const msg_t *const msg)
 {
     uint32_t i = 0;
-    void *spec_shm = spec_shms[msg->uid];
+    void *spec_shm = spec_shms[session_id2uid(msg->session_id)];
 
     char cmd_dir[CMD_LEN - 3];
     bool detail;
@@ -235,7 +235,7 @@ uint16_t ls(const msg_t *const msg)
             strcpy(cmd_dir, msg->cmd + 4);
     }
     uint8_t cmd_dir_len = strlen(cmd_dir);
-    uint32_t working_dir = working_dirs[msg->uid];
+    uint32_t working_dir = working_dirs[session_id2uid(msg->session_id)];
     if (cmd_dir_len == 0)
         goto GetInfo;
 
@@ -244,7 +244,7 @@ uint16_t ls(const msg_t *const msg)
     {
         if (cmd_dir_len == 1)
         {
-            working_dirs[msg->uid] = 0;
+            working_dirs[session_id2uid(msg->session_id)] = 0;
             return 0;
         }
         working_dir = 0;
@@ -268,7 +268,7 @@ uint16_t ls(const msg_t *const msg)
         memset(filename, 0, FILE_NAME_LEN);
         strncpy(filename, cmd_dir + l, r - l);
         uint32_t type;
-        working_dir = search(working_dir, msg->uid, filename, &type, false, false);
+        working_dir = search(working_dir, session_id2uid(msg->session_id), filename, &type, false, false);
         if (working_dir == -4)
         {
             strcpy(spec_shm, "ERROR");
@@ -295,7 +295,7 @@ GetInfo:
         return 5;
     }
     assert(dir_inode.type == 1);
-    if (!check_privilege(&dir_inode, msg->uid, 4))
+    if (!check_privilege(&dir_inode, session_id2uid(msg->session_id), 4))
     {
         strcpy(spec_shm + i, "ls: 权限不足！");
         return 19;
@@ -521,7 +521,7 @@ GetInfo:
 
 uint16_t md(const msg_t *const msg)
 {
-    void *spec_shm = spec_shms[msg->uid];
+    void *spec_shm = spec_shms[session_id2uid(msg->session_id)];
 
     char cmd_dir[CMD_LEN - 3];
     // 不会出现 else 场景，以下写法为了代码可读性。
@@ -532,7 +532,7 @@ uint16_t md(const msg_t *const msg)
     uint8_t cmd_dir_len = strlen(cmd_dir);
 
     uint8_t l = 0, r = 0;
-    uint32_t working_dir = working_dirs[msg->uid];
+    uint32_t working_dir = working_dirs[session_id2uid(msg->session_id)];
     if (cmd_dir[0] == '/')
     {
         working_dir = 0;
@@ -557,7 +557,7 @@ uint16_t md(const msg_t *const msg)
             memset(filename, 0, FILE_NAME_LEN);
             strncpy(filename, cmd_dir + l, r - l);
             uint32_t type;
-            working_dir = search(working_dir, msg->uid, filename, &type, false, false);
+            working_dir = search(working_dir, session_id2uid(msg->session_id), filename, &type, false, false);
             if (working_dir == -4)
             {
                 strcpy(spec_shm, "ERROR");
@@ -576,7 +576,7 @@ uint16_t md(const msg_t *const msg)
                 strcpy(spec_shm, "mkdir: 目录名过长！");
                 return 25;
             }
-            uint32_t ino = search(working_dir, msg->uid, cmd_dir + l, NULL, false, false);
+            uint32_t ino = search(working_dir, session_id2uid(msg->session_id), cmd_dir + l, NULL, false, false);
             if (ino == -4)
             {
                 strcpy(spec_shm, "ERROR");
@@ -584,7 +584,7 @@ uint16_t md(const msg_t *const msg)
             }
             else if (ino == -1)
             {
-                int ret = create_file(working_dir, msg->uid, 1, cmd_dir + l);
+                int ret = create_file(working_dir, session_id2uid(msg->session_id), 1, cmd_dir + l);
                 switch (ret)
                 {
                 case -1:
@@ -618,7 +618,7 @@ uint16_t md(const msg_t *const msg)
 uint16_t rd(const msg_t *const msg)
 {
     bool force = false;
-    void *spec_shm = spec_shms[msg->uid];
+    void *spec_shm = spec_shms[session_id2uid(msg->session_id)];
 
     char cmd_dir[CMD_LEN - 3];
     // 不会出现 else 场景，以下写法为了代码可读性。
@@ -645,7 +645,7 @@ uint16_t rd(const msg_t *const msg)
     uint8_t cmd_dir_len = strlen(cmd_dir);
 
     uint8_t l = 0, r = 0;
-    uint32_t working_dir = working_dirs[msg->uid];
+    uint32_t working_dir = working_dirs[session_id2uid(msg->session_id)];
     if (cmd_dir[0] == '/')
     {
         working_dir = 0;
@@ -670,7 +670,7 @@ uint16_t rd(const msg_t *const msg)
             memset(filename, 0, FILE_NAME_LEN);
             strncpy(filename, cmd_dir + l, r - l);
             uint32_t type;
-            working_dir = search(working_dir, msg->uid, filename, &type, false, false);
+            working_dir = search(working_dir, session_id2uid(msg->session_id), filename, &type, false, false);
             if (working_dir == -4)
             {
                 strcpy(spec_shm, "ERROR");
@@ -690,7 +690,7 @@ uint16_t rd(const msg_t *const msg)
                 strcpy(spec_shm, "rmdir: 目录不存在！");
                 return 25;
             }
-            uint32_t ino = search(working_dir, msg->uid, cmd_dir + l, NULL, true, force);
+            uint32_t ino = search(working_dir, session_id2uid(msg->session_id), cmd_dir + l, NULL, true, force);
             switch (ino)
             {
             case -1:
@@ -706,7 +706,7 @@ uint16_t rd(const msg_t *const msg)
                 strcpy(spec_shm, "ERROR");
                 return 5;
             default:
-                int ret = remove_dir(ino, msg->uid);
+                int ret = remove_dir(ino, session_id2uid(msg->session_id));
                 switch (ret)
                 {
                 case -1:
@@ -734,19 +734,19 @@ uint16_t rd(const msg_t *const msg)
 
 uint16_t newfile(const msg_t *const msg)
 {
-    void *spec_shm = spec_shms[msg->uid];
+    void *spec_shm = spec_shms[session_id2uid(msg->session_id)];
 
     char cmd_dir[CMD_LEN - 8];
     strcpy(cmd_dir, msg->cmd + 8);
     uint8_t cmd_dir_len = strlen(cmd_dir);
 
     uint8_t l = 0, r = 0;
-    uint32_t working_dir = working_dirs[msg->uid];
+    uint32_t working_dir = working_dirs[session_id2uid(msg->session_id)];
     if (cmd_dir[0] == '/')
     {
         if (cmd_dir_len == 1)
         {
-            working_dirs[msg->uid] = 0;
+            working_dirs[session_id2uid(msg->session_id)] = 0;
             return 0;
         }
         working_dir = 0;
@@ -768,7 +768,7 @@ uint16_t newfile(const msg_t *const msg)
             memset(filename, 0, FILE_NAME_LEN);
             strncpy(filename, cmd_dir + l, r - l);
             uint32_t type;
-            working_dir = search(working_dir, msg->uid, filename, &type, false, false);
+            working_dir = search(working_dir, session_id2uid(msg->session_id), filename, &type, false, false);
             if (working_dir == -4)
             {
                 strcpy(spec_shm, "ERROR");
@@ -792,7 +792,7 @@ uint16_t newfile(const msg_t *const msg)
                 strcpy(spec_shm, "newfile:文件名过长！");
                 return 26;
             }
-            uint32_t ino = search(working_dir, msg->uid, cmd_dir + l, NULL, false, false);
+            uint32_t ino = search(working_dir, session_id2uid(msg->session_id), cmd_dir + l, NULL, false, false);
             if (ino == -4)
             {
                 strcpy(spec_shm, "ERROR");
@@ -806,7 +806,7 @@ uint16_t newfile(const msg_t *const msg)
             else
             {
                 assert(ino == (uint32_t)-1);
-                int ret = create_file(working_dir, msg->uid, 0, cmd_dir + l);
+                int ret = create_file(working_dir, session_id2uid(msg->session_id), 0, cmd_dir + l);
                 switch (ret)
                 {
                 case -1:
@@ -833,7 +833,7 @@ uint16_t newfile(const msg_t *const msg)
 
 uint16_t rm(const msg_t *const msg)
 {
-    void *spec_shm = spec_shms[msg->uid];
+    void *spec_shm = spec_shms[session_id2uid(msg->session_id)];
 
     char cmd_dir[CMD_LEN - 3];
     // 不会出现 else 场景，以下写法为了代码可读性。
@@ -845,7 +845,7 @@ uint16_t rm(const msg_t *const msg)
     uint8_t cmd_dir_len = strlen(cmd_dir);
 
     uint8_t l = 0, r = 0;
-    uint32_t working_dir = working_dirs[msg->uid];
+    uint32_t working_dir = working_dirs[session_id2uid(msg->session_id)];
     if (cmd_dir[0] == '/')
     {
         working_dir = 0;
@@ -870,7 +870,7 @@ uint16_t rm(const msg_t *const msg)
             memset(filename, 0, FILE_NAME_LEN);
             strncpy(filename, cmd_dir + l, r - l);
             uint32_t type;
-            working_dir = search(working_dir, msg->uid, filename, &type, false, false);
+            working_dir = search(working_dir, session_id2uid(msg->session_id), filename, &type, false, false);
             if (working_dir == -4)
             {
                 strcpy(spec_shm, "ERROR");
@@ -889,7 +889,7 @@ uint16_t rm(const msg_t *const msg)
                 strcpy(spec_shm, "rm: 文件不存在！");
                 return 22;
             }
-            uint32_t ino = search(working_dir, msg->uid, cmd_dir + l, NULL, true, false);
+            uint32_t ino = search(working_dir, session_id2uid(msg->session_id), cmd_dir + l, NULL, true, false);
             switch (ino)
             {
             case -1:
@@ -900,7 +900,7 @@ uint16_t rm(const msg_t *const msg)
                 return 5;
             default:
                 assert(ino < (uint32_t)-4);
-                int ret = remove_file(ino, msg->uid);
+                int ret = remove_file(ino, session_id2uid(msg->session_id));
                 switch (ret)
                 {
                 case -1:
@@ -928,7 +928,7 @@ uint16_t rm(const msg_t *const msg)
 
 uint16_t cat(const msg_t *const msg)
 {
-    void *spec_shm = spec_shms[msg->uid];
+    void *spec_shm = spec_shms[session_id2uid(msg->session_id)];
 
     uint32_t page = 0;
     char cmd_dir[CMD_LEN - 3];
@@ -950,7 +950,7 @@ uint16_t cat(const msg_t *const msg)
     uint8_t cmd_dir_len = strlen(cmd_dir);
 
     uint8_t l = 0, r = 0;
-    uint32_t working_dir = working_dirs[msg->uid];
+    uint32_t working_dir = working_dirs[session_id2uid(msg->session_id)];
     if (cmd_dir[0] == '/')
     {
         working_dir = 0;
@@ -975,7 +975,7 @@ uint16_t cat(const msg_t *const msg)
             memset(filename, 0, FILE_NAME_LEN);
             strncpy(filename, cmd_dir + l, r - l);
             uint32_t type;
-            working_dir = search(working_dir, msg->uid, filename, &type, false, false);
+            working_dir = search(working_dir, session_id2uid(msg->session_id), filename, &type, false, false);
             if (working_dir == -4)
             {
                 strcpy(spec_shm, "ERROR");
@@ -994,7 +994,7 @@ uint16_t cat(const msg_t *const msg)
                 strcpy(spec_shm, "cat: 文件不存在！");
                 return 23;
             }
-            uint32_t ino = search(working_dir, msg->uid, cmd_dir + l, NULL, false, false);
+            uint32_t ino = search(working_dir, session_id2uid(msg->session_id), cmd_dir + l, NULL, false, false);
             switch (ino)
             {
             case -1:
@@ -1006,7 +1006,7 @@ uint16_t cat(const msg_t *const msg)
             default:
                 assert(ino < (uint32_t)-4);
                 datablock_t db;
-                int ret = read_file(ino, msg->uid, page, &db);
+                int ret = read_file(ino, session_id2uid(msg->session_id), page, &db);
                 switch (ret)
                 {
                 case -1:
