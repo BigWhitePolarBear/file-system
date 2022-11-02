@@ -35,6 +35,6 @@ int remove_dir(uint32_t ino, uint32_t uid);
 
 // 读取指定文件的第 page 块数据，成功返回 0 ，若权限不符合返回 -1 ，
 // 为目录返回 -2 ， page 超出文件大小返回 -3 ，内部出错返回 -4 。
-int read_file(uint32_t ino, uint32_t uid, uint32_t page);
+int read_file(uint32_t ino, uint32_t uid, uint32_t page, datablock_t *const db);
 
 direntry_t get_last_direntry(const inode_t *const dir_inode);

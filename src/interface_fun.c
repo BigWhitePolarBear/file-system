@@ -934,10 +934,10 @@ uint16_t cat(const msg_t *const msg)
     char cmd_dir[CMD_LEN - 3];
     if (!strncmp(msg->cmd + 4, "-p", 2))
     {
-        uint8_t i = 6;
+        uint8_t i = 7;
         while (true)
         {
-            char c = *(msg->cmd + (++i));
+            char c = *(msg->cmd + i++);
             if (!('0' <= c && c <= '9'))
                 break;
             page = page * 10 + c - '0';
@@ -1005,7 +1005,8 @@ uint16_t cat(const msg_t *const msg)
                 return 5;
             default:
                 assert(ino < (uint32_t)-4);
-                int ret = read_file(ino, msg->uid, page);
+                datablock_t db;
+                int ret = read_file(ino, msg->uid, page, &db);
                 switch (ret)
                 {
                 case -1:
@@ -1022,6 +1023,7 @@ uint16_t cat(const msg_t *const msg)
                     return 5;
                 default:
                     assert(ret == 0);
+                    memcpy(spec_shm, &db.data, BLOCK_SIZE);
                     break;
                 }
             }
