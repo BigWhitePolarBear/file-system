@@ -1,6 +1,6 @@
 #include "format.h"
+#include "base_fun.h"
 #include "bitmap.h"
-#include "internal_fun.h"
 #include "stdio.h"
 #include "string.h"
 #include "time.h"

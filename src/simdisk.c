@@ -1,8 +1,8 @@
+#include "base_fun.h"
 #include "cmd.h"
 #include "device.h"
 #include "fcntl.h"
 #include "format.h"
-#include "internal_fun.h"
 #include "stdio.h"
 #include "termios.h"
 

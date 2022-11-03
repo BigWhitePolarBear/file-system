@@ -1,4 +1,5 @@
 set(File_System_SRC
+  base_fun.c
   bitmap.c
   cmd.c
   common.c

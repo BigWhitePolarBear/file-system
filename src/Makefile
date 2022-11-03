@@ -144,6 +144,30 @@ shell/fast:
 	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/shell.dir/build.make src/CMakeFiles/shell.dir/build
 .PHONY : shell/fast
 
+base_fun.o: base_fun.c.o
+.PHONY : base_fun.o
+
+# target to build an object file
+base_fun.c.o:
+	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/base_fun.c.o
+.PHONY : base_fun.c.o
+
+base_fun.i: base_fun.c.i
+.PHONY : base_fun.i
+
+# target to preprocess a source file
+base_fun.c.i:
+	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/base_fun.c.i
+.PHONY : base_fun.c.i
+
+base_fun.s: base_fun.c.s
+.PHONY : base_fun.s
+
+# target to generate assembly for a file
+base_fun.c.s:
+	cd /home/lkh/project/file-system && $(MAKE) $(MAKESILENT) -f src/CMakeFiles/simdisk.dir/build.make src/CMakeFiles/simdisk.dir/base_fun.c.s
+.PHONY : base_fun.c.s
+
 bitmap.o: bitmap.c.o
 .PHONY : bitmap.o
 
@@ -394,6 +418,9 @@ help:
 	@echo "... rebuild_cache"
 	@echo "... shell"
 	@echo "... simdisk"
+	@echo "... base_fun.o"
+	@echo "... base_fun.i"
+	@echo "... base_fun.s"
 	@echo "... bitmap.o"
 	@echo "... bitmap.i"
 	@echo "... bitmap.s"

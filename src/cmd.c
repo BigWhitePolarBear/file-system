@@ -216,10 +216,12 @@ void handle_cmd(const msg_t *const msg)
         last_spec_shm_pos[msg->session_id] = rd(msg);
     else if (!strncmp(msg->cmd, "newfile", 7))
         last_spec_shm_pos[msg->session_id] = newfile(msg);
-    else if (!strncmp(msg->cmd, "rm", 2) || !strncmp(msg->cmd, "del", 3))
-        last_spec_shm_pos[msg->session_id] = rm(msg);
     else if (!strncmp(msg->cmd, "cat", 3))
         last_spec_shm_pos[msg->session_id] = cat(msg);
+    else if (!strncmp(msg->cmd, "cp", 2) || !strncmp(msg->cmd, "copy", 4))
+        last_spec_shm_pos[msg->session_id] = cp(msg);
+    else if (!strncmp(msg->cmd, "rm", 2) || !strncmp(msg->cmd, "del", 3))
+        last_spec_shm_pos[msg->session_id] = rm(msg);
     else
         last_spec_shm_pos[msg->session_id] = unknown(msg->session_id);
 
