@@ -280,7 +280,6 @@ int create_file(uint32_t dir_ino, uint32_t uid, uint32_t type, const char filena
             printf("获取空闲数据块失败！\n");
             return -5;
         default:
-            assert(inode.direct_blocks[0] < (uint32_t)-2);
             break;
         }
         dirblock_t new_db;
@@ -308,8 +307,6 @@ int create_file(uint32_t dir_ino, uint32_t uid, uint32_t type, const char filena
         printf("写入 inode 失败！\n");
         return -5;
     }
-
-    dir_inode.size++;
     if (iwrite(dir_ino, &dir_inode))
     {
         printf("写入 inode 失败！\n");
@@ -869,72 +866,91 @@ int read_file(uint32_t ino, uint32_t uid, uint32_t page, datablock_t *const db)
 
 int copy_file(uint32_t dir_ino, uint32_t ino, uint32_t uid, const char filename[])
 {
-    // inode_t dir_inode, inode;
-    // if (iread(dir_ino, &dir_inode) || iread(ino, &inode))
-    // {
-    //     printf("读取 inode 失败！\n");
-    //     return -5;
-    // }
-    // assert(dir_inode.type == 1 && inode.type == 0);
-    // if (!check_privilege(&dir_inode, uid, 2) || !check_privilege(&inode, uid, 4))
-    //     return -1;
+    inode_t dir_inode, inode;
+    if (iread(dir_ino, &dir_inode) || iread(ino, &inode))
+    {
+        printf("读取 inode 失败！\n");
+        return -5;
+    }
+    assert(dir_inode.type == 1 && inode.type == 0);
+    if (!check_privilege(&dir_inode, uid, 2) || !check_privilege(&inode, uid, 4))
+        return -1;
 
-    // assert(inode.bcnt <= DIRECT_DATA_BLOCK_CNT + INDIRECT_DATA_BLOCK_CNT + DOUBLE_INDIRECT_DATA_BLOCK_CNT +
-    //                          TRIPLE_INDIRECT_DATA_BLOCK_CNT);
-    // assert(dir_inode.size <= DIRECT_DIR_ENTRY_CNT + INDIRECT_DIR_ENTRY_CNT + DOUBLE_INDIRECT_DIR_ENTRY_CNT +
-    //                              TRIPLE_INDIRECT_DIR_ENTRY_CNT);
+    assert(inode.bcnt <= DIRECT_DATA_BLOCK_CNT + INDIRECT_DATA_BLOCK_CNT + DOUBLE_INDIRECT_DATA_BLOCK_CNT +
+                             TRIPLE_INDIRECT_DATA_BLOCK_CNT);
+    assert(dir_inode.size <= DIRECT_DIR_ENTRY_CNT + INDIRECT_DIR_ENTRY_CNT + DOUBLE_INDIRECT_DIR_ENTRY_CNT +
+                                 TRIPLE_INDIRECT_DIR_ENTRY_CNT);
 
-    // if (dir_inode.size ==
-    //     DIRECT_DIR_ENTRY_CNT + INDIRECT_DIR_ENTRY_CNT + DOUBLE_INDIRECT_DIR_ENTRY_CNT +
-    //     TRIPLE_INDIRECT_DIR_ENTRY_CNT) return -2;
+    if (dir_inode.size ==
+        DIRECT_DIR_ENTRY_CNT + INDIRECT_DIR_ENTRY_CNT + DOUBLE_INDIRECT_DIR_ENTRY_CNT + TRIPLE_INDIRECT_DIR_ENTRY_CNT)
+        return -2;
 
-    // uint32_t new_ino = get_free_inode();
-    // switch (new_ino)
-    // {
-    // case -1:
-    //     return -4;
-    // case -2:
-    //     printf("获取空闲 inode 失败！\n");
-    //     return -5;
-    // default:
-    //     assert(new_ino < (uint32_t)-2);
-    //     break;
-    // }
-    // direntry_t de;
-    // de.ino = new_ino;
-    // de.type = 0;
-    // strcpy(de.name, filename);
-    // int ret = push_direntry(&dir_inode, &de);
-    // switch (ret)
-    // {
-    // case -1:
-    //     return -2;
-    // case -2:
-    //     return -3;
-    // case -3:
-    //     return -5;
-    // default:
-    //     assert(ret == 0);
-    //     break;
-    // }
+    uint32_t new_ino = get_free_inode();
+    switch (new_ino)
+    {
+    case -1:
+        return -4;
+    case -2:
+        printf("获取空闲 inode 失败！\n");
+        return -5;
+    default:
+        assert(new_ino < (uint32_t)-2);
+        break;
+    }
+    direntry_t de;
+    de.ino = new_ino;
+    de.type = 0;
+    strcpy(de.name, filename);
+    int ret = _push_direntry(&dir_inode, &de);
+    switch (ret)
+    {
+    case -1:
+        return -2;
+    case -2:
+        return -3;
+    case -3:
+        return -5;
+    default:
+        assert(ret == 0);
+        break;
+    }
 
-    // inode_t new_inode;
-    // new_inode = inode;
-    // new_inode.ctime = (uint32_t)time(NULL);
-    // new_inode.wtime = (uint32_t)time(NULL);
+    inode_t new_inode;
+    new_inode = inode;
+    new_inode.size = 0;
+    new_inode.bcnt = 0;
+    new_inode.ctime = (uint32_t)time(NULL);
+    new_inode.wtime = (uint32_t)time(NULL);
+    printf("%d\n", new_inode.type);
 
-    // // 拷贝原 inode 中的数据。
-    // datablock_t db;
-    // for (uint32_t i = 0; i < inode.bcnt; i++)
-    // {
-    //     read_file(ino)
-    // }
+    // 拷贝原 inode 中的数据。
+    datablock_t db;
+    for (uint32_t i = 0; i < inode.bcnt; i++)
+    {
+        if (_read_file(&inode, i, &db))
+        {
+            printf("读取源文件失败！\n");
+            return -5;
+        }
+        int ret = _append_block(&new_inode, &db);
+        switch (ret)
+        {
+        case -1:
+            return -3;
+        case -2:
+            printf("写入目标文件失败！\n");
+            return -5;
+        default:
+            assert(ret == 0);
+            break;
+        }
+    }
 
-    // if (iwrite(dir_ino, &dir_inode) || iwrite(ino, &inode))
-    // {
-    //     printf("写入 inode 失败！\n");
-    //     return -5;
-    // }
+    if (iwrite(dir_ino, &dir_inode) || iwrite(ino, &inode) || iwrite(new_ino, &new_inode))
+    {
+        printf("写入 inode 失败！\n");
+        return -5;
+    }
 
     return 0;
 }

@@ -998,11 +998,13 @@ uint16_t cp(const msg_t *const msg)
     uint8_t j = 0;
     while (msg->cmd[i] && msg->cmd[i] != ' ')
         src[j++] = msg->cmd[i++];
+    src[j] = 0;
     while (msg->cmd[i] == ' ')
         i++;
     j = 0;
     while (msg->cmd[i] && msg->cmd[i] != ' ')
         dst[j++] = msg->cmd[i++];
+    dst[j] = 0;
 
     uint8_t src_len = strlen(src);
     while (src[src_len - 1] == ' ')
@@ -1095,7 +1097,7 @@ uint16_t cp(const msg_t *const msg)
         strcpy(spec_shm, "cp: 目标目录不能为空！");
         return 31;
     }
-    l = 0, r = 0;
+    l = r = 0;
     uint32_t dst_dir = working_dirs[session_id2uid(msg->session_id)];
     if (dst[0] == '/')
     {
@@ -1104,6 +1106,12 @@ uint16_t cp(const msg_t *const msg)
     }
     while (dst[dst_len - 1] == '/')
         dst[--dst_len] = 0;
+    if (dst_len == 0)
+    {
+        dir_ino = 0;
+        goto Copy;
+    }
+
     // 逐一分解 dst 中出现的目录。
     while (1)
     {
@@ -1163,6 +1171,7 @@ uint16_t cp(const msg_t *const msg)
         l = r;
     }
 
+Copy:
     int ret = copy_file(dir_ino, ino, session_id2uid(msg->session_id), filename);
     switch (ret)
     {
