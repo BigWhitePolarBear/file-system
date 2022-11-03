@@ -34,4 +34,4 @@ uint32_t session_id2uid(uint32_t session_id);
 
 // 通过输入共享内存获取命令。
 void handle_msg();
-void handle_cmd(const msg_t *const msg);
+void *handle_cmd(void *ptr);

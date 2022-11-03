@@ -502,6 +502,12 @@ int remove_file(uint32_t ino, uint32_t uid)
         }
     }
 
+    if (unset_inode_bitmap(ino))
+    {
+        printf("修改 inode bitmap 失败！\n");
+        return -3;
+    }
+
     return 0;
 }
 

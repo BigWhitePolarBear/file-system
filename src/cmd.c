@@ -2,6 +2,7 @@
 #include "common.h"
 #include "fcntl.h"
 #include "interface_fun.h"
+#include "pthread.h"
 #include "semaphore.h"
 #include "stdio.h"
 #include "string.h"
@@ -192,15 +193,18 @@ void handle_msg()
             else
             {
                 sem_post(out_ready);
-                handle_cmd(&msg);
-                sem_post(spec_out_readys[msg.session_id]);
+                pthread_t thread;
+                pthread_create(&thread, NULL, &handle_cmd, &msg);
+                pthread_join(thread, NULL);
             }
         }
     }
 }
 
-void handle_cmd(const msg_t *const msg)
+void *handle_cmd(void *ptr)
 {
+    msg_t *msg = ptr;
+
     void *spec_shm = spec_shms[msg->session_id];
     memset(spec_shm, 0, last_spec_shm_pos[msg->session_id]);
 
@@ -225,5 +229,7 @@ void handle_cmd(const msg_t *const msg)
     else
         last_spec_shm_pos[msg->session_id] = unknown(msg->session_id);
 
-    return;
+    sem_post(spec_out_readys[msg->session_id]);
+
+    return NULL;
 }
