@@ -1,10 +1,14 @@
 #pragma once
 
 #include "common.h"
+#include "pthread.h"
 #include "stdbool.h"
 
 // 这个头文件和源文件主要包含一些供 internal 等调用的函数，特点是
 // 若操作文件或目录，不检查权限是否符合，限制更少，且函数名以_开头，使用前要注意。
+
+extern pthread_rwlock_t **inode_bitmap_locks, **data_bitmap_locks;
+extern pthread_rwlock_t *inode_lock, *data_lock;
 
 int iread(uint32_t ino, inode_t *const inode);
 

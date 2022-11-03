@@ -8,6 +8,9 @@
 #include "string.h"
 #include "time.h"
 
+pthread_rwlock_t **inode_bitmap_locks, **data_bitmap_locks;
+pthread_rwlock_t *inode_lock, *data_lock;
+
 int iread(uint32_t ino, inode_t *const inode)
 {
     assert(ino < sb.icnt);
@@ -63,6 +66,25 @@ void sbinit()
         printf("致命错误，退出系统！\n");
         exit(-1);
     }
+
+    inode_bitmap_locks = malloc(sizeof(pthread_rwlock_t *) * sb.inode_bitmap_bcnt);
+    for (uint32_t i = 0; i < sb.inode_bitmap_bcnt; i++)
+    {
+        inode_bitmap_locks[i] = malloc(sizeof(pthread_rwlock_t));
+        pthread_rwlock_init(inode_bitmap_locks[i], NULL);
+    }
+
+    data_bitmap_locks = malloc(sizeof(pthread_rwlock_t *) * sb.data_bitmap_bcnt);
+    for (uint32_t i = 0; i < sb.data_bitmap_bcnt; i++)
+    {
+        data_bitmap_locks[i] = malloc(sizeof(pthread_rwlock_t));
+        pthread_rwlock_init(data_bitmap_locks[i], NULL);
+    }
+
+    inode_lock = malloc(sizeof(pthread_rwlock_t));
+    data_lock = malloc(sizeof(pthread_rwlock_t));
+    pthread_rwlock_init(inode_lock, NULL);
+    pthread_rwlock_init(data_lock, NULL);
 }
 
 bool check_privilege(const inode_t *const inode, uint32_t uid, uint32_t privilege)
