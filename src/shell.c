@@ -148,7 +148,7 @@ int main()
         // 等待后端返回输出。
         sem_wait(spec_out_ready);
         if (!strncmp(spec_shm, "ERROR", 5))
-            printf("ERROR\r\n");
+            printf("ERROR");
         else
             printf("%s", (char *)spec_shm);
         if (strlen((char *)spec_shm))

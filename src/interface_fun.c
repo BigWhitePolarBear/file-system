@@ -986,6 +986,7 @@ uint16_t cp(const msg_t *const msg)
 {
     void *spec_shm = spec_shms[session_id2uid(msg->session_id)];
 
+    char filename[FILE_NAME_LEN];
     char src[CMD_LEN - 4], dst[CMD_LEN - 4];
     uint32_t ino, dir_ino;
     src[0] = dst[0] = 0;
@@ -1014,81 +1015,6 @@ uint16_t cp(const msg_t *const msg)
         strcpy(spec_shm, "cp: 源文件不能为空！");
         return 28;
     }
-
-    uint8_t l = 0, r = 0;
-    uint32_t src_dir = working_dirs[session_id2uid(msg->session_id)];
-    if (src[0] == '/')
-    {
-        src_dir = 0;
-        l = r = 1;
-    }
-    char filename[FILE_NAME_LEN];
-    // 逐一分解 src 中出现的目录。
-    while (1)
-    {
-        while (r < src_len && src[r] != '/')
-            r++;
-        if (r < src_len)
-        {
-            if (r - l > FILE_NAME_LEN)
-            {
-                strcpy(spec_shm, "cp: 源文件不存在！");
-                return 22;
-            }
-            char dirname[FILE_NAME_LEN];
-            memset(dirname, 0, FILE_NAME_LEN);
-            strncpy(dirname, src + l, r - l);
-            uint32_t type;
-            src_dir = search(src_dir, session_id2uid(msg->session_id), dirname, &type, false, false);
-            if (src_dir == -4)
-            {
-                strcpy(spec_shm, "ERROR");
-                return 5;
-            }
-            else if (src_dir == -1 || type != 1)
-            {
-                strcpy(spec_shm, "cp: 源文件不存在！");
-                return 25;
-            }
-        }
-        else // 说明已经是最后一个目录。
-        {
-            if (r == l)
-            {
-                strcpy(spec_shm, "cp: 源文件名不能为空！");
-                return 31;
-            }
-            if (r - l > FILE_NAME_LEN)
-            {
-                strcpy(spec_shm, "cp: 源文件不存在！");
-                return 25;
-            }
-            strcpy(filename, src + l);
-            uint32_t type;
-            ino = search(src_dir, session_id2uid(msg->session_id), src + l, &type, false, false);
-            if (type != 0)
-            {
-                strcpy(spec_shm, "cp: 源文件不存在！");
-                return 25;
-            }
-            switch (ino)
-            {
-            case -1:
-                strcpy(spec_shm, "cp: 源文件不存在！");
-                return 25;
-            case -4:
-                strcpy(spec_shm, "ERROR");
-                return 5;
-            default:
-                assert(ino < (uint32_t)-4);
-                break;
-            }
-            break;
-        }
-        r++;
-        l = r;
-    }
-
     uint8_t dst_len = strlen(dst);
     while (dst[dst_len - 1] == ' ')
         dst[--dst_len] = 0;
@@ -1097,102 +1023,271 @@ uint16_t cp(const msg_t *const msg)
         strcpy(spec_shm, "cp: 目标目录不能为空！");
         return 31;
     }
-    l = r = 0;
-    uint32_t dst_dir = working_dirs[session_id2uid(msg->session_id)];
-    if (dst[0] == '/')
-    {
-        dst_dir = 0;
-        l = r = 1;
-    }
-    while (dst[dst_len - 1] == '/')
-        dst[--dst_len] = 0;
-    if (dst_len == 0)
-    {
-        dir_ino = 0;
-        goto Copy;
-    }
 
-    // 逐一分解 dst 中出现的目录。
-    while (1)
+    bool src_host = false, dst_host = false;
+    if (!strncmp(src, "<host>", 6))
+        src_host = true;
+    if (!strncmp(dst, "<host>", 6))
+        dst_host = true;
+
+    if (!src_host)
     {
-        while (r < dst_len && dst[r] != '/')
+        uint8_t l = 0, r = 0;
+        uint32_t src_dir = working_dirs[session_id2uid(msg->session_id)];
+        if (src[0] == '/')
+        {
+            src_dir = 0;
+            l = r = 1;
+        }
+        // 逐一分解 src 中出现的目录。
+        while (1)
+        {
+            while (r < src_len && src[r] != '/')
+                r++;
+            if (r < src_len)
+            {
+                if (r - l > FILE_NAME_LEN)
+                {
+                    strcpy(spec_shm, "cp: 源文件不存在！");
+                    return 22;
+                }
+                char dirname[FILE_NAME_LEN];
+                memset(dirname, 0, FILE_NAME_LEN);
+                strncpy(dirname, src + l, r - l);
+                uint32_t type;
+                src_dir = search(src_dir, session_id2uid(msg->session_id), dirname, &type, false, false);
+                if (src_dir == -4)
+                {
+                    strcpy(spec_shm, "ERROR");
+                    return 5;
+                }
+                else if (src_dir == -1 || type != 1)
+                {
+                    strcpy(spec_shm, "cp: 源文件不存在！");
+                    return 25;
+                }
+            }
+            else // 说明已经是最后一个目录。
+            {
+                if (r == l)
+                {
+                    strcpy(spec_shm, "cp: 源文件名不能为空！");
+                    return 31;
+                }
+                if (r - l > FILE_NAME_LEN)
+                {
+                    strcpy(spec_shm, "cp: 源文件不存在！");
+                    return 25;
+                }
+                strcpy(filename, src + l);
+                uint32_t type;
+                ino = search(src_dir, session_id2uid(msg->session_id), src + l, &type, false, false);
+                if (type != 0)
+                {
+                    strcpy(spec_shm, "cp: 源文件不存在！");
+                    return 25;
+                }
+                switch (ino)
+                {
+                case -1:
+                    strcpy(spec_shm, "cp: 源文件不存在！");
+                    return 25;
+                case -4:
+                    strcpy(spec_shm, "ERROR");
+                    return 5;
+                default:
+                    assert(ino < (uint32_t)-4);
+                    break;
+                }
+                break;
+            }
             r++;
-        if (r < dst_len)
-        {
-            if (r - l > FILE_NAME_LEN)
-            {
-                strcpy(spec_shm, "cp: 目标目录不存在！");
-                return 28;
-            }
-            char dirname[FILE_NAME_LEN];
-            memset(dirname, 0, FILE_NAME_LEN);
-            strncpy(dirname, dst + l, r - l);
-            uint32_t type;
-            dst_dir = search(dst_dir, session_id2uid(msg->session_id), dirname, &type, false, false);
-            if (dst_dir == -4)
-            {
-                strcpy(spec_shm, "ERROR");
-                return 5;
-            }
-            else if (dst_dir == -1 || type != 1)
-            {
-                strcpy(spec_shm, "cp: 目标目录不存在！");
-                return 28;
-            }
+            l = r;
         }
-        else // 说明已经是最后一个目录。
+    }
+    if (!dst_host)
+    {
+        uint8_t l = 0, r = 0;
+        uint32_t dst_dir = working_dirs[session_id2uid(msg->session_id)];
+        if (dst[0] == '/')
         {
-            if (r - l > FILE_NAME_LEN)
-            {
-                strcpy(spec_shm, "cp: 目标目录不存在！");
-                return 28;
-            }
-            uint32_t type;
-            dir_ino = search(dst_dir, session_id2uid(msg->session_id), dst + l, &type, false, false);
-            if (type != 1)
-            {
-                strcpy(spec_shm, "cp: 目标目录不存在！");
-                return 28;
-            }
-            switch (dir_ino)
-            {
-            case -1:
-                strcpy(spec_shm, "cp: 目标目录不存在！");
-                return 28;
-            case -4:
-                strcpy(spec_shm, "ERROR");
-                return 5;
-            default:
-                assert(dir_ino < (uint32_t)-4);
-            }
-            break;
+            dst_dir = 0;
+            l = r = 1;
         }
-        r++;
-        l = r;
+        while (dst[dst_len - 1] == '/')
+            dst[--dst_len] = 0;
+        if (dst_len == 0)
+        {
+            dir_ino = 0;
+            goto Copy;
+        }
+
+        // 逐一分解 dst 中出现的目录。
+        while (1)
+        {
+            while (r < dst_len && dst[r] != '/')
+                r++;
+            if (r < dst_len)
+            {
+                if (r - l > FILE_NAME_LEN)
+                {
+                    strcpy(spec_shm, "cp: 目标目录不存在！");
+                    return 28;
+                }
+                char dirname[FILE_NAME_LEN];
+                memset(dirname, 0, FILE_NAME_LEN);
+                strncpy(dirname, dst + l, r - l);
+                uint32_t type;
+                dst_dir = search(dst_dir, session_id2uid(msg->session_id), dirname, &type, false, false);
+                if (dst_dir == -4)
+                {
+                    strcpy(spec_shm, "ERROR");
+                    return 5;
+                }
+                else if (dst_dir == -1 || type != 1)
+                {
+                    strcpy(spec_shm, "cp: 目标目录不存在！");
+                    return 28;
+                }
+            }
+            else // 说明已经是最后一个目录。
+            {
+                if (r - l > FILE_NAME_LEN)
+                {
+                    strcpy(spec_shm, "cp: 目标目录不存在！");
+                    return 28;
+                }
+                uint32_t type;
+                dir_ino = search(dst_dir, session_id2uid(msg->session_id), dst + l, &type, false, false);
+                if (type != 1)
+                {
+                    strcpy(spec_shm, "cp: 目标目录不存在！");
+                    return 28;
+                }
+                switch (dir_ino)
+                {
+                case -1:
+                    strcpy(spec_shm, "cp: 目标目录不存在！");
+                    return 28;
+                case -4:
+                    strcpy(spec_shm, "ERROR");
+                    return 5;
+                default:
+                    assert(dir_ino < (uint32_t)-4);
+                }
+                break;
+            }
+            r++;
+            l = r;
+        }
+    }
+    else if (dst[dst_len - 1] != '/')
+    {
+        dst[dst_len] = '/';
+        dst[++dst_len] = 0;
     }
 
 Copy:
-    int ret = copy_file(dir_ino, ino, session_id2uid(msg->session_id), filename);
-    switch (ret)
+    if (src_host && dst_host)
     {
-    case -1:
-        strcpy(spec_shm, "cp: 权限不足！");
-        return 19;
-    case -2:
-        strcpy(spec_shm, "cp: 目录容量不足！");
-        return 25;
-    case -3:
-        strcpy(spec_shm, "cp: 存储空间不足！");
-        return 25;
-    case -4:
-        strcpy(spec_shm, "cp: inode 数量不足！");
-        return 25;
-    case -5:
-        strcpy(spec_shm, "ERROR");
-        return 5;
-    default:
-        assert(ret == 0);
-        break;
+        strcpy(spec_shm, "cp: 不支持 host 到 host 的复制！");
+        return 40;
+    }
+    else if (!src_host && !dst_host)
+    {
+        int ret = copy_file(dir_ino, ino, session_id2uid(msg->session_id), filename);
+        switch (ret)
+        {
+        case -1:
+            strcpy(spec_shm, "cp: 权限不足！");
+            return 19;
+        case -2:
+            strcpy(spec_shm, "cp: 目录容量不足！");
+            return 25;
+        case -3:
+            strcpy(spec_shm, "cp: 存储空间不足！");
+            return 25;
+        case -4:
+            strcpy(spec_shm, "cp: inode 数量不足！");
+            return 25;
+        case -5:
+            strcpy(spec_shm, "ERROR");
+            return 5;
+        default:
+            assert(ret == 0);
+            break;
+        }
+    }
+    else if (src_host)
+    {
+        uint8_t l = 7, r = 7;
+        // 逐一分解 src 中出现的目录。
+        while (true)
+        {
+            while (r < src_len && src[r] != '/')
+                r++;
+            if (r == src_len) // 说明已经是文件名。
+            {
+                if (r == l)
+                {
+                    strcpy(spec_shm, "cp: 源文件名不能为空！");
+                    return 31;
+                }
+                if (r - l > FILE_NAME_LEN)
+                {
+                    strcpy(spec_shm, "cp: 源文件名过长！");
+                    return 25;
+                }
+                strcpy(filename, src + l);
+                break;
+            }
+            r++;
+            l = r;
+        }
+        int ret = copy_from_host(dir_ino, session_id2uid(msg->session_id), src + 6, filename);
+        switch (ret)
+        {
+        case -1:
+            strcpy(spec_shm, "cp: 权限不足！");
+            return 19;
+        case -2:
+            strcpy(spec_shm, "cp: 目录容量不足！");
+            return 25;
+        case -3:
+            strcpy(spec_shm, "cp: 存储空间不足！");
+            return 25;
+        case -4:
+            strcpy(spec_shm, "cp: inode 数量不足！");
+            return 25;
+        case -5:
+            strcpy(spec_shm, "cp: 无法打开宿主文件！");
+            return 31;
+        case -6:
+            strcpy(spec_shm, "ERROR");
+            return 5;
+        default:
+            assert(ret == 0);
+            break;
+        }
+    }
+    else if (dst_host)
+    {
+        int ret = copy_to_host(ino, session_id2uid(msg->session_id), dst + 6, filename);
+        switch (ret)
+        {
+        case -1:
+            strcpy(spec_shm, "cp: 权限不足！");
+            return 19;
+        case -2:
+            strcpy(spec_shm, "cp: 无法创建宿主文件！");
+            return 31;
+        case -3:
+            strcpy(spec_shm, "ERROR");
+            return 5;
+        default:
+            assert(ret == 0);
+            break;
+        }
     }
     return 0; // 若未出错， cp 不会有字符进入缓冲区。
 }

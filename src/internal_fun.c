@@ -917,11 +917,11 @@ int copy_file(uint32_t dir_ino, uint32_t ino, uint32_t uid, const char filename[
 
     inode_t new_inode;
     new_inode = inode;
+    new_inode.ino = new_ino;
     new_inode.size = 0;
     new_inode.bcnt = 0;
     new_inode.ctime = (uint32_t)time(NULL);
     new_inode.wtime = (uint32_t)time(NULL);
-    printf("%d\n", new_inode.type);
 
     // 拷贝原 inode 中的数据。
     datablock_t db;
@@ -951,6 +951,121 @@ int copy_file(uint32_t dir_ino, uint32_t ino, uint32_t uid, const char filename[
         printf("写入 inode 失败！\n");
         return -5;
     }
+
+    return 0;
+}
+
+int copy_from_host(uint32_t dir_ino, uint32_t uid, const char host_filename[], const char filename[])
+{
+    inode_t dir_inode;
+    if (iread(dir_ino, &dir_inode))
+    {
+        printf("读取 inode 失败！\n");
+        return -6;
+    }
+    if (!check_privilege(&dir_inode, uid, 2))
+        return -1;
+    assert(dir_inode.size <= DIRECT_DIR_ENTRY_CNT + INDIRECT_DIR_ENTRY_CNT + DOUBLE_INDIRECT_DIR_ENTRY_CNT +
+                                 TRIPLE_INDIRECT_DIR_ENTRY_CNT);
+    if (dir_inode.size ==
+        DIRECT_DIR_ENTRY_CNT + INDIRECT_DIR_ENTRY_CNT + DOUBLE_INDIRECT_DIR_ENTRY_CNT + TRIPLE_INDIRECT_DIR_ENTRY_CNT)
+        return -2;
+
+    uint32_t ino = get_free_inode();
+    switch (ino)
+    {
+    case -1:
+        return -4;
+    case -2:
+        printf("获取空闲 inode 失败！\n");
+        return -6;
+    default:
+        break;
+    }
+    inode_t inode;
+    inode.ino = ino;
+    inode.type = 0;
+    inode.ctime = (uint32_t)time(NULL);
+    inode.wtime = (uint32_t)time(NULL);
+    inode.uid = uid;
+    inode.privilege = 066;
+    inode.size = 0;
+    inode.bcnt = 0;
+
+    direntry_t de;
+    de.ino = ino;
+    de.type = 0;
+    strcpy(de.name, filename);
+    int ret = _push_direntry(&dir_inode, &de);
+    switch (ret)
+    {
+    case -1:
+        return -2;
+    case -2:
+        return -3;
+    case -3:
+        printf("追加目录项失败！\n");
+        return -6;
+    default:
+        assert(ret == 0);
+        break;
+    }
+
+    FILE *file = fopen(host_filename, "r");
+    if (!file)
+        return -5;
+
+    datablock_t db;
+    int read;
+    do
+    {
+        read = fread(&db, 1, BLOCK_SIZE, file);
+        if (read == 0)
+            break;
+        int ret = _append_block(&inode, &db);
+        switch (ret)
+        {
+        case -1:
+            return -3;
+        case -2:
+            printf("写入目标文件失败！\n");
+            return -6;
+        default:
+            assert(ret == 0);
+            break;
+        }
+    } while (read == BLOCK_SIZE);
+
+    if (iwrite(dir_ino, &dir_inode) || iwrite(ino, &inode))
+    {
+        printf("写入 inode 失败！\n");
+        return -6;
+    }
+
+    return 0;
+}
+
+int copy_to_host(uint32_t ino, uint32_t uid, char host_dirname[], const char filename[])
+{
+    inode_t inode;
+    if (iread(ino, &inode))
+    {
+        printf("读取 inode 失败！\n");
+        return -3;
+    }
+    if (!check_privilege(&inode, uid, 4))
+        return -1;
+
+    FILE *file = fopen(strcat(host_dirname, filename), "w");
+    if (!file)
+        return -2;
+    datablock_t db;
+    for (uint32_t i = 0; i < inode.bcnt; i++)
+    {
+        _read_file(&inode, i, &db);
+        fwrite(&db, 1, BLOCK_SIZE, file);
+    }
+    fclose(file);
 
     return 0;
 }

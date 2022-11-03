@@ -31,3 +31,11 @@ int read_file(uint32_t ino, uint32_t uid, uint32_t page, datablock_t *const db);
 // 将指定文件复制到指定目录，成功返回 0 ，若权限不符合返回 -1 ，为目录容量不足返回 -2 ，
 // 存储空间不足返回 -3 ， inode 数量不足返回 -4 ，内部出错返回 -5 。
 int copy_file(uint32_t dir_ino, uint32_t ino, uint32_t uid, const char filename[]);
+
+// 将指定宿主文件复制到指定目录，成功返回 0 ，若权限不符合返回 -1 ，为目录容量不足返回 -2 ，
+// 存储空间不足返回 -3 ， inode 数量不足返回 -4 ，无法打开宿主文件返回 -5 ，内部出错返回 -6 。
+int copy_from_host(uint32_t dir_ino, uint32_t uid, const char host_filename[], const char filename[]);
+
+// 将指定宿主文件复制到指定目录，成功返回 0 ，若权限不符合返回 -1 ，无法创建宿主文件返回 -2 ，
+// 内部出错返回 -3 。
+int copy_to_host(uint32_t ino, uint32_t uid, char host_dirname[], const char filename[]);
