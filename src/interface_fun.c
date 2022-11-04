@@ -26,8 +26,8 @@ uint16_t info(uint32_t uid)
 
     pthread_rwlock_rdlock(sb_lock);
 
-    float storage_size = sb.bsize * sb.data_bcnt / 1024 / 1024;
-    float free_storage_size = sb.bsize * sb.free_data_bcnt / 1024 / 1024;
+    float storage_size = sb.bsize * sb.data_bcnt / 1024. / 1024.;
+    float free_storage_size = sb.bsize * sb.free_data_bcnt / 1024. / 1024.;
     strcpy(spec_shm + i, "总存储空间：");
     i += 18;
     sprintf(spec_shm + i, "%.2fMB\r\n", storage_size);
