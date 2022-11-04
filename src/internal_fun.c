@@ -152,7 +152,7 @@ uint32_t search(uint32_t dir_ino, uint32_t uid, const char filename[], uint32_t 
                 }
                 if (!check_privilege(&inode, uid, 2))
                     return -2;
-                if (!force && inode.size > 2)
+                if (!force && inode.type == 1 && inode.size > 2)
                     return -3;
 
                 direntry_t de;

@@ -14,6 +14,9 @@ int main()
         return -1;
     }
 
+    lock_init();
+    printf("锁初始化完成！\r\n");
+
     struct termios tm, tm_old;
     int fd = 0;
     fcntl(fd, F_SETFL, O_NONBLOCK);

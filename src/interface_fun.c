@@ -23,6 +23,9 @@ uint16_t info(uint32_t uid)
 
     uint16_t i = 0;
     void *spec_shm = spec_shms[uid];
+
+    pthread_rwlock_rdlock(sb_lock);
+
     float storage_size = sb.bsize * sb.data_bcnt / 1024 / 1024;
     float free_storage_size = sb.bsize * sb.free_data_bcnt / 1024 / 1024;
     strcpy(spec_shm + i, "总存储空间：");
@@ -114,6 +117,8 @@ uint16_t info(uint32_t uid)
     i += 24;
     sprintf(spec_shm + i, "%u", sb.data_start);
     i += uint2width(sb.data_start);
+
+    pthread_rwlock_unlock(sb_lock);
 
     return i;
 }
@@ -1366,7 +1371,6 @@ uint16_t rm(const msg_t *const msg)
                 strcpy(spec_shm, "ERROR");
                 return 5;
             default:
-                assert(ino < (uint32_t)-4);
                 int ret = remove_file(ino, session_id2uid(msg->session_id));
                 switch (ret)
                 {

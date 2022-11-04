@@ -11,6 +11,7 @@ int mkfs()
 {
     mksb();
     printf("格式化超级块完成！ \r\n");
+
     if (mkbitmap())
     {
         printf("格式化位图失败！ \r\n");
@@ -40,10 +41,10 @@ void mksb()
     sb.isize = INODE_SIZE;
 
     sb.inode_bcnt = (INODE_CNT * INODE_SIZE + BLOCK_SIZE - 1) / BLOCK_SIZE;
-    sb.inode_bitmap_bcnt = (INODE_CNT + BIT_PER_BLOCK - 1) / BIT_PER_BLOCK;
+    sb.inode_bitmap_bcnt = INODE_BITMAP_BCNT;
     // 一个块中有许多位，磁盘中绝大部分块都是数据块，因此
     // data_bitmap_bcnt 即为块总数除以一个块拥有的比特数。
-    sb.data_bitmap_bcnt = (BLOCK_CNT + BIT_PER_BLOCK - 1) / BIT_PER_BLOCK;
+    sb.data_bitmap_bcnt = DATA_BITMAP_BCNT;
     sb.data_bcnt = BLOCK_CNT - 1 - sb.inode_bcnt - sb.inode_bitmap_bcnt - sb.data_bitmap_bcnt;
     sb.free_data_bcnt = BLOCK_CNT - 1 - sb.inode_bcnt - sb.inode_bitmap_bcnt - sb.data_bitmap_bcnt;
 
