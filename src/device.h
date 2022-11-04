@@ -2,7 +2,7 @@
 
 #include "stdint.h"
 
-// main 函数开始处应调用 device_init() ，结束时调用 device_close() 。
+// main 函数开始处应调用 device_init() ，结束时调用 device_close() ，这构成了最基本的设备层抽象。
 // 以下的函数调用成功返回 0 ，否则返回 -1 。
 
 int devinit();
