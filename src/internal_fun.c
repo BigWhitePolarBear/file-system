@@ -9,6 +9,38 @@
 #include "time.h"
 #include "unistd.h"
 
+int locate_last(uint8_t *l, uint8_t *r, uint32_t *working_dir, uint8_t cmd_len, const char cmd[])
+{
+    while (1)
+    {
+        while (*r < cmd_len && cmd[*r] != '/')
+            (*r)++;
+        if (*r < cmd_len)
+        {
+            if (*r - *l > FILE_NAME_LEN)
+                return -1;
+            char filename[FILE_NAME_LEN];
+            memset(filename, 0, FILE_NAME_LEN);
+            strncpy(filename, cmd + *l, *r - *l);
+            uint32_t type;
+            *working_dir = search(*working_dir, 0, filename, &type, false, false); // uid 不重要，因为不会删除目录项。
+            if (*working_dir == -4)
+                return -2;
+            else if (*working_dir == -1 || type != 1)
+                return -1;
+        }
+        else // 说明已经是最后一个目录。
+        {
+            if (*r - *l > FILE_NAME_LEN)
+                return -1;
+            break;
+        }
+        (*r)++;
+        *l = *r;
+    }
+    return 0;
+}
+
 uint32_t search(uint32_t dir_ino, uint32_t uid, const char filename[], uint32_t *type, bool delete, bool force)
 {
     inode_t dir_inode;

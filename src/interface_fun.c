@@ -150,87 +150,62 @@ uint16_t cd(const msg_t *const msg)
 
     while (cmd_dir[cmd_dir_len - 1] == '/')
         cmd_dir[--cmd_dir_len] = 0;
-    // 逐一分解 cmd_dir 中出现的目录。
+
     pthread_rwlock_rdlock(inode_lock);
-    while (1)
+
+    int ret = locate_last(&l, &r, &working_dir, cmd_dir_len, cmd_dir);
+    switch (ret)
     {
-        while (r < cmd_dir_len && cmd_dir[r] != '/')
-            r++;
-        if (r < cmd_dir_len)
-        {
-            if (r - l > FILE_NAME_LEN)
-            {
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "cd: 目录不存在！");
-                return 22;
-            }
-            char filename[FILE_NAME_LEN];
-            memset(filename, 0, FILE_NAME_LEN);
-            strncpy(filename, cmd_dir + l, r - l);
-            uint32_t type;
-            working_dir = search(working_dir, session_id2uid(msg->session_id), filename, &type, false, false);
-            if (working_dir == -4)
-            {
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "ERROR");
-                return 5;
-            }
-            else if (working_dir == -1 || type != 1)
-            {
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "cd: 目录不存在！");
-                return 22;
-            }
-        }
-        else // 说明已经是最后一个目录。
-        {
-            if (r - l > FILE_NAME_LEN)
-            {
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "cd: 目录不存在！");
-                return 22;
-            }
-            uint32_t type;
-            uint32_t ino = search(working_dir, session_id2uid(msg->session_id), cmd_dir + l, &type, false, false);
-            if (ino == -4)
-            {
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "ERROR");
-                return 5;
-            }
-            else if (ino == -1 || type != 1)
-            {
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "cd: 目录不存在！");
-                return 22;
-            }
-            else
-            {
-                assert(ino < (uint32_t)-4);
-
-                inode_t inode;
-                if (iread(ino, &inode))
-                {
-                    pthread_rwlock_unlock(inode_lock);
-                    printf("读取 inode 失败！\n");
-                    strcpy(spec_shm, "ERROR");
-                    return 5;
-                }
-                if (!check_privilege(&inode, session_id2uid(msg->session_id), 1))
-                {
-                    pthread_rwlock_unlock(inode_lock);
-                    strcpy(spec_shm, "cd: 权限不足！");
-                    return 19;
-                }
-                pthread_rwlock_unlock(inode_lock);
-                working_dirs[session_id2uid(msg->session_id)] = ino;
-            }
-
-            break;
-        }
-        r++;
-        l = r;
+    case -1:
+        pthread_rwlock_unlock(inode_lock);
+        strcpy(spec_shm, "cd: 目录不存在！");
+        return 22;
+        break;
+    case -2:
+        pthread_rwlock_unlock(inode_lock);
+        strcpy(spec_shm, "ERROR");
+        return 5;
+    default:
+        assert(ret == 0);
+        break;
     }
+
+    uint32_t type;
+    uint32_t ino = search(working_dir, session_id2uid(msg->session_id), cmd_dir + l, &type, false, false);
+    if (ino == -4)
+    {
+        pthread_rwlock_unlock(inode_lock);
+        strcpy(spec_shm, "ERROR");
+        return 5;
+    }
+    else if (ino == -1 || type != 1)
+    {
+        pthread_rwlock_unlock(inode_lock);
+        strcpy(spec_shm, "cd: 目录不存在！");
+        return 22;
+    }
+    else
+    {
+        assert(ino < (uint32_t)-4);
+
+        inode_t inode;
+        if (iread(ino, &inode))
+        {
+            pthread_rwlock_unlock(inode_lock);
+            printf("读取 inode 失败！\n");
+            strcpy(spec_shm, "ERROR");
+            return 5;
+        }
+        if (!check_privilege(&inode, session_id2uid(msg->session_id), 1))
+        {
+            pthread_rwlock_unlock(inode_lock);
+            strcpy(spec_shm, "cd: 权限不足！");
+            return 19;
+        }
+        pthread_rwlock_unlock(inode_lock);
+        working_dirs[session_id2uid(msg->session_id)] = ino;
+    }
+
     return 0; // 若未出错， cd 不会有字符进入缓冲区。
 }
 
@@ -585,98 +560,72 @@ uint16_t md(const msg_t *const msg)
     }
     while (cmd_dir[cmd_dir_len - 1] == '/')
         cmd_dir[--cmd_dir_len] = 0;
-
-    // 逐一分解 cmd_dir 中出现的目录。
-    pthread_rwlock_wrlock(inode_lock);
-    while (1)
+    if (cmd_dir_len == 0)
     {
-        while (r < cmd_dir_len && cmd_dir[r] != '/')
-            r++;
-        if (r < cmd_dir_len)
+        strcpy(spec_shm, "mkdir: 目录名不能为空！");
+        return 31;
+    }
+
+    pthread_rwlock_wrlock(inode_lock);
+
+    int ret = locate_last(&l, &r, &working_dir, cmd_dir_len, cmd_dir);
+    switch (ret)
+    {
+    case -1:
+        pthread_rwlock_unlock(inode_lock);
+        strcpy(spec_shm, "mkdir: 目录不存在或目录名过长！");
+        return 43;
+        break;
+    case -2:
+        pthread_rwlock_unlock(inode_lock);
+        strcpy(spec_shm, "ERROR");
+        return 5;
+    default:
+        assert(ret == 0);
+        break;
+    }
+
+    uint32_t ino = search(working_dir, session_id2uid(msg->session_id), cmd_dir + l, NULL, false, false);
+    if (ino == -4)
+    {
+        pthread_rwlock_unlock(inode_lock);
+        strcpy(spec_shm, "ERROR");
+        return 5;
+    }
+    else if (ino == -1)
+    {
+        int ret = create_file(working_dir, session_id2uid(msg->session_id), 1, cmd_dir + l);
+        pthread_rwlock_unlock(inode_lock);
+        switch (ret)
         {
-            if (r - l > FILE_NAME_LEN)
-            {
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "mkdir: 目录不存在！");
-                return 25;
-            }
-            char filename[FILE_NAME_LEN];
-            memset(filename, 0, FILE_NAME_LEN);
-            strncpy(filename, cmd_dir + l, r - l);
-            uint32_t type;
-            working_dir = search(working_dir, session_id2uid(msg->session_id), filename, &type, false, false);
-            if (working_dir == -4)
-            {
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "ERROR");
-                return 5;
-            }
-            else if (working_dir == -1 || type != 1)
-            {
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "mkdir: 目录不存在！");
-                return 25;
-            }
-        }
-        else // 说明已经是最后一个目录。
-        {
-            if (r == l)
-            {
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "mkdir: 目录名不能为空！");
-                return 31;
-            }
-            if (r - l > FILE_NAME_LEN)
-            {
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "mkdir: 目录名过长！");
-                return 25;
-            }
-            uint32_t ino = search(working_dir, session_id2uid(msg->session_id), cmd_dir + l, NULL, false, false);
-            if (ino == -4)
-            {
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "ERROR");
-                return 5;
-            }
-            else if (ino == -1)
-            {
-                int ret = create_file(working_dir, session_id2uid(msg->session_id), 1, cmd_dir + l);
-                pthread_rwlock_unlock(inode_lock);
-                switch (ret)
-                {
-                case -1:
-                    strcpy(spec_shm, "mkdir: 权限不足！");
-                    return 22;
-                case -2:
-                    strcpy(spec_shm, "mkdir: 目录容量不足！");
-                    return 28;
-                case -3:
-                    strcpy(spec_shm, "mkdir: 存储空间不足！");
-                    return 28;
-                case -4:
-                    strcpy(spec_shm, "mkdir: inode 数量不足！");
-                    return 28;
-                case -5:
-                    strcpy(spec_shm, "ERROR");
-                    return 5;
-                default:
-                    assert(ret == 0);
-                    break;
-                }
-            }
-            else
-            {
-                assert(ino < (uint32_t)-4);
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "mkdir: 同名目录或文件已存在！");
-                return 40;
-            }
+        case -1:
+            strcpy(spec_shm, "mkdir: 权限不足！");
+            return 22;
+        case -2:
+            strcpy(spec_shm, "mkdir: 目录容量不足！");
+            return 28;
+        case -3:
+            strcpy(spec_shm, "mkdir: 存储空间不足！");
+            return 28;
+        case -4:
+            strcpy(spec_shm, "mkdir: inode 数量不足！");
+            return 28;
+        case -5:
+            strcpy(spec_shm, "ERROR");
+            return 5;
+        default:
+            assert(ret == 0);
             break;
         }
-        r++;
-        l = r;
     }
+    else
+    {
+        assert(ino < (uint32_t)-4);
+        pthread_rwlock_unlock(inode_lock);
+        strcpy(spec_shm, "mkdir: 同名目录或文件已存在！");
+        return 40;
+    }
+
     return 0; // 若未出错， mkdir 不会有字符进入缓冲区。
 }
 
@@ -721,96 +670,70 @@ uint16_t rd(const msg_t *const msg)
 
     while (cmd_dir[cmd_dir_len - 1] == '/')
         cmd_dir[--cmd_dir_len] = 0;
-    pthread_rwlock_wrlock(inode_lock);
-    // 逐一分解 cmd_dir 中出现的目录。
-    while (1)
+    if (cmd_dir_len == 0)
     {
-        while (r < cmd_dir_len && cmd_dir[r] != '/')
-            r++;
-        if (r < cmd_dir_len)
+        strcpy(spec_shm, "rmdir: 目录名不能为空！");
+        return 31;
+    }
+
+    pthread_rwlock_wrlock(inode_lock);
+
+    int ret = locate_last(&l, &r, &working_dir, cmd_dir_len, cmd_dir);
+    switch (ret)
+    {
+    case -1:
+        pthread_rwlock_unlock(inode_lock);
+        strcpy(spec_shm, "rmdir: 目录不存在！");
+        return 25;
+        break;
+    case -2:
+        pthread_rwlock_unlock(inode_lock);
+        strcpy(spec_shm, "ERROR");
+        return 5;
+    default:
+        assert(ret == 0);
+        break;
+    }
+
+    uint32_t ino = search(working_dir, session_id2uid(msg->session_id), cmd_dir + l, NULL, true, force);
+    switch (ino)
+    {
+    case -1:
+        pthread_rwlock_unlock(inode_lock);
+        strcpy(spec_shm, "rmdir: 目录不存在！");
+        return 25;
+    case -2:
+        pthread_rwlock_unlock(inode_lock);
+        strcpy(spec_shm, "rmdir: 权限不足！");
+        return 22;
+    case -3:
+        pthread_rwlock_unlock(inode_lock);
+        strcpy(spec_shm, "rmdir: 目录不为空，可添加 -f 参数强制删除！");
+        return 59;
+    case -4:
+        pthread_rwlock_unlock(inode_lock);
+        strcpy(spec_shm, "ERROR");
+        return 5;
+    default:
+        int ret = remove_dir(ino, session_id2uid(msg->session_id));
+        pthread_rwlock_unlock(inode_lock);
+        switch (ret)
         {
-            if (r - l > FILE_NAME_LEN)
-            {
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "rmdir: 目录不存在！");
-                return 25;
-            }
-            char filename[FILE_NAME_LEN];
-            memset(filename, 0, FILE_NAME_LEN);
-            strncpy(filename, cmd_dir + l, r - l);
-            uint32_t type;
-            working_dir = search(working_dir, session_id2uid(msg->session_id), filename, &type, false, false);
-            if (working_dir == -4)
-            {
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "ERROR");
-                return 5;
-            }
-            else if (working_dir == -1 || type != 1)
-            {
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "rmdir: 目录不存在！");
-                return 25;
-            }
-            assert(working_dir < (uint32_t)-4);
-        }
-        else // 说明已经是最后一个目录。
-        {
-            if (r == l)
-            {
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "rmdir: 目录名不能为空！");
-                return 31;
-            }
-            if (r - l > FILE_NAME_LEN)
-            {
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "rmdir: 目录不存在！");
-                return 25;
-            }
-            uint32_t ino = search(working_dir, session_id2uid(msg->session_id), cmd_dir + l, NULL, true, force);
-            switch (ino)
-            {
-            case -1:
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "rmdir: 目录不存在！");
-                return 25;
-            case -2:
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "rmdir: 权限不足！");
-                return 22;
-            case -3:
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "rmdir: 目录不为空，可添加 -f 参数强制删除！");
-                return 59;
-            case -4:
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "ERROR");
-                return 5;
-            default:
-                int ret = remove_dir(ino, session_id2uid(msg->session_id));
-                pthread_rwlock_unlock(inode_lock);
-                switch (ret)
-                {
-                case -1:
-                    strcpy(spec_shm, "rmdir: 权限不足！");
-                    return 22;
-                case -2:
-                    strcpy(spec_shm, "rmdir: 目标为文件！");
-                    return 25;
-                case -3:
-                    strcpy(spec_shm, "ERROR");
-                    return 5;
-                default:
-                    assert(ret == 0);
-                    break;
-                }
-            }
+        case -1:
+            strcpy(spec_shm, "rmdir: 权限不足！");
+            return 22;
+        case -2:
+            strcpy(spec_shm, "rmdir: 目标为文件！");
+            return 25;
+        case -3:
+            strcpy(spec_shm, "ERROR");
+            return 5;
+        default:
+            assert(ret == 0);
             break;
         }
-        r++;
-        l = r;
     }
+
     return 0; // 若未出错， rmdir 不会有字符进入缓冲区。
 }
 
@@ -836,97 +759,73 @@ uint16_t newfile(const msg_t *const msg)
         working_dir = 0;
         l = r = 1;
     }
-    // 逐一分解 cmd_dir 中出现的目录。
+
     pthread_rwlock_wrlock(inode_lock);
-    while (1)
+
+    int ret = locate_last(&l, &r, &working_dir, cmd_dir_len, cmd_dir);
+    switch (ret)
     {
-        while (r < cmd_dir_len && cmd_dir[r] != '/')
-            r++;
-        if (r < cmd_dir_len)
+    case -1:
+        pthread_rwlock_unlock(inode_lock);
+        strcpy(spec_shm, "newfile: 目录不存在或文件名过长！");
+        return 45;
+        break;
+    case -2:
+        pthread_rwlock_unlock(inode_lock);
+        strcpy(spec_shm, "ERROR");
+        return 5;
+    default:
+        assert(ret == 0);
+        break;
+    }
+
+    if (r == l)
+    {
+        pthread_rwlock_unlock(inode_lock);
+        strcpy(spec_shm, "newfile:文件名不能为空！");
+        return 32;
+    }
+    uint32_t ino = search(working_dir, session_id2uid(msg->session_id), cmd_dir + l, NULL, false, false);
+    if (ino == -4)
+    {
+        pthread_rwlock_unlock(inode_lock);
+        strcpy(spec_shm, "ERROR");
+        return 5;
+    }
+    else if (ino < (uint32_t)-4)
+    {
+        pthread_rwlock_unlock(inode_lock);
+        strcpy(spec_shm, "newfile: 文件已存在！");
+        return 27;
+    }
+    else
+    {
+        assert(ino == (uint32_t)-1);
+        int ret = create_file(working_dir, session_id2uid(msg->session_id), 0, cmd_dir + l);
+        pthread_rwlock_unlock(inode_lock);
+        switch (ret)
         {
-            if (r - l > FILE_NAME_LEN)
-            {
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "newfile: 目录不存在！");
-                return 27;
-            }
-            char filename[FILE_NAME_LEN];
-            memset(filename, 0, FILE_NAME_LEN);
-            strncpy(filename, cmd_dir + l, r - l);
-            uint32_t type;
-            working_dir = search(working_dir, session_id2uid(msg->session_id), filename, &type, false, false);
-            if (working_dir == -4)
-            {
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "ERROR");
-                return 5;
-            }
-            else if (working_dir == -1 || type != 1)
-            {
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "newfile: 目录不存在！");
-                return 27;
-            }
-        }
-        else // 说明已经是文件名。
-        {
-            if (r == l)
-            {
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "newfile:文件名不能为空！");
-                return 32;
-            }
-            if (r - l > FILE_NAME_LEN)
-            {
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "newfile:文件名过长！");
-                return 26;
-            }
-            uint32_t ino = search(working_dir, session_id2uid(msg->session_id), cmd_dir + l, NULL, false, false);
-            if (ino == -4)
-            {
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "ERROR");
-                return 5;
-            }
-            else if (ino < (uint32_t)-4)
-            {
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "newfile: 文件已存在！");
-                return 27;
-            }
-            else
-            {
-                assert(ino == (uint32_t)-1);
-                int ret = create_file(working_dir, session_id2uid(msg->session_id), 0, cmd_dir + l);
-                pthread_rwlock_unlock(inode_lock);
-                switch (ret)
-                {
-                case -1:
-                    strcpy(spec_shm, "newfile: 权限不足！");
-                    return 24;
-                case -2:
-                    strcpy(spec_shm, "newfile: 目录容量不足！");
-                    return 30;
-                case -3:
-                    strcpy(spec_shm, "newfile: 存储空间不足！");
-                    return 30;
-                case -4:
-                    strcpy(spec_shm, "newfile: inode 数量不足！");
-                    return 30;
-                case -5:
-                    strcpy(spec_shm, "ERROR");
-                    return 5;
-                default:
-                    assert(ret == 0);
-                    break;
-                }
-            }
+        case -1:
+            strcpy(spec_shm, "newfile: 权限不足！");
+            return 24;
+        case -2:
+            strcpy(spec_shm, "newfile: 目录容量不足！");
+            return 30;
+        case -3:
+            strcpy(spec_shm, "newfile: 存储空间不足！");
+            return 30;
+        case -4:
+            strcpy(spec_shm, "newfile: inode 数量不足！");
+            return 30;
+        case -5:
+            strcpy(spec_shm, "ERROR");
+            return 5;
+        default:
+            assert(ret == 0);
             break;
         }
-        r++;
-        l = r;
     }
+
     return 0; // 若未出错， rmdir 不会有字符进入缓冲区。
 }
 
@@ -962,93 +861,69 @@ uint16_t cat(const msg_t *const msg)
         working_dir = 0;
         l = r = 1;
     }
-    // 逐一分解 cmd_dir 中出现的目录。
+
     pthread_rwlock_rdlock(inode_lock);
-    while (1)
+
+    int ret = locate_last(&l, &r, &working_dir, cmd_dir_len, cmd_dir);
+    switch (ret)
     {
-        while (r < cmd_dir_len && cmd_dir[r] != '/')
-            r++;
-        if (r < cmd_dir_len)
+    case -1:
+        pthread_rwlock_unlock(inode_lock);
+        strcpy(spec_shm, "cat: 目录或文件不存在！");
+        return 32;
+        break;
+    case -2:
+        pthread_rwlock_unlock(inode_lock);
+        strcpy(spec_shm, "ERROR");
+        return 5;
+    default:
+        assert(ret == 0);
+        break;
+    }
+
+    if (r == l)
+    {
+        pthread_rwlock_unlock(inode_lock);
+        strcpy(spec_shm, "cat: 文件名不能为空！");
+        return 29;
+    }
+    uint32_t ino = search(working_dir, session_id2uid(msg->session_id), cmd_dir + l, NULL, false, false);
+    switch (ino)
+    {
+    case -1:
+        pthread_rwlock_unlock(inode_lock);
+        strcpy(spec_shm, "cat: 文件不存在！");
+        return 23;
+    case -4:
+        pthread_rwlock_unlock(inode_lock);
+        strcpy(spec_shm, "ERROR");
+        return 5;
+    default:
+        assert(ino < (uint32_t)-4);
+        datablock_t db;
+        int ret = read_file(ino, session_id2uid(msg->session_id), page, &db);
+        pthread_rwlock_unlock(inode_lock);
+        switch (ret)
         {
-            if (r - l > FILE_NAME_LEN)
-            {
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "cat: 文件不存在！");
-                return 23;
-            }
-            char filename[FILE_NAME_LEN];
-            memset(filename, 0, FILE_NAME_LEN);
-            strncpy(filename, cmd_dir + l, r - l);
-            uint32_t type;
-            working_dir = search(working_dir, session_id2uid(msg->session_id), filename, &type, false, false);
-            if (working_dir == -4)
-            {
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "ERROR");
-                return 5;
-            }
-            else if (working_dir == -1 || type != 1)
-            {
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "cat: 文件不存在！");
-                return 23;
-            }
-        }
-        else // 说明已经是最后一个目录。
-        {
-            if (r == l)
-            {
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "cat: 文件名不能为空！");
-                return 29;
-            }
-            if (r - l > FILE_NAME_LEN)
-            {
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "cat: 文件不存在！");
-                return 23;
-            }
-            uint32_t ino = search(working_dir, session_id2uid(msg->session_id), cmd_dir + l, NULL, false, false);
-            switch (ino)
-            {
-            case -1:
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "cat: 文件不存在！");
-                return 23;
-            case -4:
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "ERROR");
-                return 5;
-            default:
-                assert(ino < (uint32_t)-4);
-                datablock_t db;
-                int ret = read_file(ino, session_id2uid(msg->session_id), page, &db);
-                pthread_rwlock_unlock(inode_lock);
-                switch (ret)
-                {
-                case -1:
-                    strcpy(spec_shm, "cat: 权限不足！");
-                    return 20;
-                case -2:
-                    strcpy(spec_shm, "cat: 目标为目录！");
-                    return 23;
-                case -3:
-                    strcpy(spec_shm, "cat: 访问内容超出文件大小！");
-                    return 38;
-                case -4:
-                    strcpy(spec_shm, "ERROR");
-                    return 5;
-                default:
-                    assert(ret == 0);
-                    memcpy(spec_shm, &db.data, BLOCK_SIZE);
-                    break;
-                }
-            }
+        case -1:
+            strcpy(spec_shm, "cat: 权限不足！");
+            return 20;
+        case -2:
+            strcpy(spec_shm, "cat: 目标为目录！");
+            return 23;
+        case -3:
+            strcpy(spec_shm, "cat: 访问内容超出文件大小！");
+            return 38;
+        case -4:
+            strcpy(spec_shm, "ERROR");
+            return 5;
+        default:
+            assert(ret == 0);
+            memcpy(spec_shm, &db.data, BLOCK_SIZE);
             break;
         }
-        r++;
-        l = r;
     }
+
     return BLOCK_SIZE;
 }
 
@@ -1110,78 +985,52 @@ uint16_t cp(const msg_t *const msg)
             src_dir = 0;
             l = r = 1;
         }
-        // 逐一分解 src 中出现的目录。
-        while (1)
+
+        int ret = locate_last(&l, &r, &src_dir, src_len, src);
+        switch (ret)
         {
-            while (r < src_len && src[r] != '/')
-                r++;
-            if (r < src_len)
-            {
-                if (r - l > FILE_NAME_LEN)
-                {
-                    pthread_rwlock_unlock(inode_lock);
-                    strcpy(spec_shm, "cp: 源文件不存在！");
-                    return 22;
-                }
-                char dirname[FILE_NAME_LEN];
-                memset(dirname, 0, FILE_NAME_LEN);
-                strncpy(dirname, src + l, r - l);
-                uint32_t type;
-                src_dir = search(src_dir, session_id2uid(msg->session_id), dirname, &type, false, false);
-                if (src_dir == -4)
-                {
-                    pthread_rwlock_unlock(inode_lock);
-                    strcpy(spec_shm, "ERROR");
-                    return 5;
-                }
-                else if (src_dir == -1 || type != 1)
-                {
-                    pthread_rwlock_unlock(inode_lock);
-                    strcpy(spec_shm, "cp: 源文件不存在！");
-                    return 25;
-                }
-            }
-            else // 说明已经是最后一个目录。
-            {
-                if (r == l)
-                {
-                    pthread_rwlock_unlock(inode_lock);
-                    strcpy(spec_shm, "cp: 源文件名不能为空！");
-                    return 31;
-                }
-                if (r - l > FILE_NAME_LEN)
-                {
-                    pthread_rwlock_unlock(inode_lock);
-                    strcpy(spec_shm, "cp: 源文件不存在！");
-                    return 25;
-                }
-                strcpy(filename, src + l);
-                uint32_t type;
-                ino = search(src_dir, session_id2uid(msg->session_id), src + l, &type, false, false);
-                if (type != 0)
-                {
-                    pthread_rwlock_unlock(inode_lock);
-                    strcpy(spec_shm, "cp: 源文件不存在！");
-                    return 25;
-                }
-                switch (ino)
-                {
-                case -1:
-                    pthread_rwlock_unlock(inode_lock);
-                    strcpy(spec_shm, "cp: 源文件不存在！");
-                    return 25;
-                case -4:
-                    pthread_rwlock_unlock(inode_lock);
-                    strcpy(spec_shm, "ERROR");
-                    return 5;
-                default:
-                    assert(ino < (uint32_t)-4);
-                    break;
-                }
-                break;
-            }
-            r++;
-            l = r;
+        case -1:
+            pthread_rwlock_unlock(inode_lock);
+            strcpy(spec_shm, "cp: 源目录或文件不存在！");
+            return 34;
+            break;
+        case -2:
+            pthread_rwlock_unlock(inode_lock);
+            strcpy(spec_shm, "ERROR");
+            return 5;
+        default:
+            assert(ret == 0);
+            break;
+        }
+
+        if (r == l)
+        {
+            pthread_rwlock_unlock(inode_lock);
+            strcpy(spec_shm, "cp: 源文件名不能为空！");
+            return 31;
+        }
+        strcpy(filename, src + l);
+        uint32_t type;
+        ino = search(src_dir, session_id2uid(msg->session_id), src + l, &type, false, false);
+        if (type != 0)
+        {
+            pthread_rwlock_unlock(inode_lock);
+            strcpy(spec_shm, "cp: 源文件不存在！");
+            return 25;
+        }
+        switch (ino)
+        {
+        case -1:
+            pthread_rwlock_unlock(inode_lock);
+            strcpy(spec_shm, "cp: 源文件不存在！");
+            return 25;
+        case -4:
+            pthread_rwlock_unlock(inode_lock);
+            strcpy(spec_shm, "ERROR");
+            return 5;
+        default:
+            assert(ino < (uint32_t)-4);
+            break;
         }
     }
     if (!dst_host)
@@ -1201,70 +1050,43 @@ uint16_t cp(const msg_t *const msg)
             goto Copy;
         }
 
-        // 逐一分解 dst 中出现的目录。
-        while (1)
+        int ret = locate_last(&l, &r, &dst_dir, dst_len, dst);
+        switch (ret)
         {
-            while (r < dst_len && dst[r] != '/')
-                r++;
-            if (r < dst_len)
-            {
-                if (r - l > FILE_NAME_LEN)
-                {
-                    pthread_rwlock_unlock(inode_lock);
-                    strcpy(spec_shm, "cp: 目标目录不存在！");
-                    return 28;
-                }
-                char dirname[FILE_NAME_LEN];
-                memset(dirname, 0, FILE_NAME_LEN);
-                strncpy(dirname, dst + l, r - l);
-                uint32_t type;
-                dst_dir = search(dst_dir, session_id2uid(msg->session_id), dirname, &type, false, false);
-                if (dst_dir == -4)
-                {
-                    pthread_rwlock_unlock(inode_lock);
-                    strcpy(spec_shm, "ERROR");
-                    return 5;
-                }
-                else if (dst_dir == -1 || type != 1)
-                {
-                    pthread_rwlock_unlock(inode_lock);
-                    strcpy(spec_shm, "cp: 目标目录不存在！");
-                    return 28;
-                }
-            }
-            else // 说明已经是最后一个目录。
-            {
-                if (r - l > FILE_NAME_LEN)
-                {
-                    pthread_rwlock_unlock(inode_lock);
-                    strcpy(spec_shm, "cp: 目标目录不存在！");
-                    return 28;
-                }
-                uint32_t type;
-                dir_ino = search(dst_dir, session_id2uid(msg->session_id), dst + l, &type, false, false);
-                if (type != 1)
-                {
-                    pthread_rwlock_unlock(inode_lock);
-                    strcpy(spec_shm, "cp: 目标目录不存在！");
-                    return 28;
-                }
-                switch (dir_ino)
-                {
-                case -1:
-                    pthread_rwlock_unlock(inode_lock);
-                    strcpy(spec_shm, "cp: 目标目录不存在！");
-                    return 28;
-                case -4:
-                    pthread_rwlock_unlock(inode_lock);
-                    strcpy(spec_shm, "ERROR");
-                    return 5;
-                default:
-                    assert(dir_ino < (uint32_t)-4);
-                }
-                break;
-            }
-            r++;
-            l = r;
+        case -1:
+            pthread_rwlock_unlock(inode_lock);
+            strcpy(spec_shm, "cp: 源目录或文件不存在！");
+            return 34;
+            break;
+        case -2:
+            pthread_rwlock_unlock(inode_lock);
+            strcpy(spec_shm, "ERROR");
+            return 5;
+        default:
+            assert(ret == 0);
+            break;
+        }
+
+        uint32_t type;
+        dir_ino = search(dst_dir, session_id2uid(msg->session_id), dst + l, &type, false, false);
+        if (type != 1)
+        {
+            pthread_rwlock_unlock(inode_lock);
+            strcpy(spec_shm, "cp: 目标目录不存在！");
+            return 28;
+        }
+        switch (dir_ino)
+        {
+        case -1:
+            pthread_rwlock_unlock(inode_lock);
+            strcpy(spec_shm, "cp: 目标目录不存在！");
+            return 28;
+        case -4:
+            pthread_rwlock_unlock(inode_lock);
+            strcpy(spec_shm, "ERROR");
+            return 5;
+        default:
+            assert(dir_ino < (uint32_t)-4);
         }
     }
     else if (dst[dst_len - 1] != '/')
@@ -1407,86 +1229,61 @@ uint16_t rm(const msg_t *const msg)
         l = r = 1;
     }
 
-    // 逐一分解 cmd_dir 中出现的目录。
     pthread_rwlock_wrlock(inode_lock);
-    while (1)
+
+    int ret = locate_last(&l, &r, &working_dir, cmd_dir_len, cmd_dir);
+    switch (ret)
     {
-        while (r < cmd_dir_len && cmd_dir[r] != '/')
-            r++;
-        if (r < cmd_dir_len)
+    case -1:
+        pthread_rwlock_unlock(inode_lock);
+        strcpy(spec_shm, "rm: 目录或文件不存在！");
+        return 31;
+        break;
+    case -2:
+        pthread_rwlock_unlock(inode_lock);
+        strcpy(spec_shm, "ERROR");
+        return 5;
+    default:
+        assert(ret == 0);
+        break;
+    }
+
+    if (r == l)
+    {
+        pthread_rwlock_unlock(inode_lock);
+        strcpy(spec_shm, "rm: 文件名不能为空！");
+        return 28;
+    }
+    uint32_t ino = search(working_dir, session_id2uid(msg->session_id), cmd_dir + l, NULL, true, false);
+    switch (ino)
+    {
+    case -1:
+        pthread_rwlock_unlock(inode_lock);
+        strcpy(spec_shm, "rm: 文件不存在！");
+        return 22;
+    case -4:
+        pthread_rwlock_unlock(inode_lock);
+        strcpy(spec_shm, "ERROR");
+        return 5;
+    default:
+        assert(ino < (uint32_t)-4);
+        int ret = remove_file(ino, session_id2uid(msg->session_id));
+        pthread_rwlock_unlock(inode_lock);
+        switch (ret)
         {
-            if (r - l > FILE_NAME_LEN)
-            {
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "rm: 文件不存在！");
-                return 22;
-            }
-            char filename[FILE_NAME_LEN];
-            memset(filename, 0, FILE_NAME_LEN);
-            strncpy(filename, cmd_dir + l, r - l);
-            working_dir = search(working_dir, session_id2uid(msg->session_id), filename, NULL, false, false);
-            if (working_dir == -4)
-            {
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "ERROR");
-                return 5;
-            }
-            else if (working_dir == -1)
-            {
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "rm: 文件不存在！");
-                return 22;
-            }
-        }
-        else // 说明已经是最后一个目录。
-        {
-            if (r == l)
-            {
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "rm: 文件名不能为空！");
-                return 28;
-            }
-            if (r - l > FILE_NAME_LEN)
-            {
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "rm: 文件不存在！");
-                return 22;
-            }
-            uint32_t ino = search(working_dir, session_id2uid(msg->session_id), cmd_dir + l, NULL, true, false);
-            switch (ino)
-            {
-            case -1:
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "rm: 文件不存在！");
-                return 22;
-            case -4:
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "ERROR");
-                return 5;
-            default:
-                assert(ino < (uint32_t)-4);
-                int ret = remove_file(ino, session_id2uid(msg->session_id));
-                pthread_rwlock_unlock(inode_lock);
-                switch (ret)
-                {
-                case -1:
-                    strcpy(spec_shm, "rm: 权限不足！");
-                    return 19;
-                case -2:
-                    strcpy(spec_shm, "rm: 目标为目录！");
-                    return 22;
-                case -3:
-                    strcpy(spec_shm, "ERROR");
-                    return 5;
-                default:
-                    assert(ret == 0);
-                    break;
-                }
-            }
+        case -1:
+            strcpy(spec_shm, "rm: 权限不足！");
+            return 19;
+        case -2:
+            strcpy(spec_shm, "rm: 目标为目录！");
+            return 22;
+        case -3:
+            strcpy(spec_shm, "ERROR");
+            return 5;
+        default:
+            assert(ret == 0);
             break;
         }
-        r++;
-        l = r;
     }
 
     return 0; // 若未出错， rm 不会有字符进入缓冲区。
@@ -1524,84 +1321,58 @@ uint16_t chm(const msg_t *const msg)
 
     while (cmd_dir[cmd_dir_len - 1] == '/')
         cmd_dir[--cmd_dir_len] = 0;
-
-    // 逐一分解 cmd_dir 中出现的目录。
-    pthread_rwlock_wrlock(inode_lock);
-    while (1)
+    if (cmd_dir_len == 0)
     {
-        while (r < cmd_dir_len && cmd_dir[r] != '/')
-            r++;
-        if (r < cmd_dir_len)
+        strcpy(spec_shm, "chmod: 文件或目录名不能为空！");
+        return 40;
+    }
+
+    pthread_rwlock_wrlock(inode_lock);
+
+    int ret = locate_last(&l, &r, &working_dir, cmd_dir_len, cmd_dir);
+    switch (ret)
+    {
+    case -1:
+        pthread_rwlock_unlock(inode_lock);
+        strcpy(spec_shm, "chmod: 目录或文件不存在！");
+        return 34;
+        break;
+    case -2:
+        pthread_rwlock_unlock(inode_lock);
+        strcpy(spec_shm, "ERROR");
+        return 5;
+    default:
+        assert(ret == 0);
+        break;
+    }
+
+    uint32_t ino = search(working_dir, session_id2uid(msg->session_id), cmd_dir + l, NULL, false, false);
+    switch (ino)
+    {
+    case -1:
+        pthread_rwlock_unlock(inode_lock);
+        strcpy(spec_shm, "chmod: 文件或目录不存在！");
+        return 34;
+    case -4:
+        pthread_rwlock_unlock(inode_lock);
+        strcpy(spec_shm, "ERROR");
+        return 5;
+    default:
+        assert(ino < (uint32_t)-4);
+        int ret = change_privilege(ino, session_id2uid(msg->session_id), privilege);
+        pthread_rwlock_unlock(inode_lock);
+        switch (ret)
         {
-            if (r - l > FILE_NAME_LEN)
-            {
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "chmod: 文件或目录不存在！");
-                return 34;
-            }
-            char filename[FILE_NAME_LEN];
-            memset(filename, 0, FILE_NAME_LEN);
-            strncpy(filename, cmd_dir + l, r - l);
-            working_dir = search(working_dir, session_id2uid(msg->session_id), filename, NULL, false, false);
-            if (working_dir == -4)
-            {
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "ERROR");
-                return 5;
-            }
-            else if (working_dir == -1)
-            {
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "chmod: 文件或目录不存在！");
-                return 34;
-            }
-        }
-        else // 说明已经是最后一个目录。
-        {
-            if (r == l)
-            {
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "chmod: 文件或目录名不能为空！");
-                return 40;
-            }
-            if (r - l > FILE_NAME_LEN)
-            {
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "chmod: 文件或目录不存在！");
-                return 34;
-            }
-            uint32_t ino = search(working_dir, session_id2uid(msg->session_id), cmd_dir + l, NULL, false, false);
-            switch (ino)
-            {
-            case -1:
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "chmod: 文件或目录不存在！");
-                return 34;
-            case -4:
-                pthread_rwlock_unlock(inode_lock);
-                strcpy(spec_shm, "ERROR");
-                return 5;
-            default:
-                assert(ino < (uint32_t)-4);
-                int ret = change_privilege(ino, session_id2uid(msg->session_id), privilege);
-                pthread_rwlock_unlock(inode_lock);
-                switch (ret)
-                {
-                case -1:
-                    strcpy(spec_shm, "chmod: 权限不足！");
-                    return 22;
-                case -2:
-                    strcpy(spec_shm, "ERROR");
-                    return 5;
-                default:
-                    assert(ret == 0);
-                    break;
-                }
-            }
+        case -1:
+            strcpy(spec_shm, "chmod: 权限不足！");
+            return 22;
+        case -2:
+            strcpy(spec_shm, "ERROR");
+            return 5;
+        default:
+            assert(ret == 0);
             break;
         }
-        r++;
-        l = r;
     }
 
     return 0; // 若未出错， chmod 不会有字符进入缓冲区。

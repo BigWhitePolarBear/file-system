@@ -6,6 +6,10 @@
 // 这个头文件和源文件主要包含一些供 interface 调用的函数，特点是
 // 若操作文件或目录，将会要求提供 uid 以检查权限是否符合。
 
+// 从 l 开始定位 cmd 中的最后一个文件名， r 是结尾。
+// 成功返回 0 ，目录不存在返回 -1 ，内部出错返回 -2 。
+int locate_last(uint8_t *l, uint8_t *r, uint32_t *working_dir, uint8_t cmd_len, const char cmd[]);
+
 // 在指定目录中搜寻文件或目录，当找到时，若 delete == true 将其从目录中删除，
 // 找到则返回对应的 ino ，否则则返回 -1 ，需要删除且权限不足时返回 -2 ，
 // 删除非空目录且 force == false ， 返回 -3 ，内部出错时返回 -4 。
