@@ -226,6 +226,8 @@ void *handle_cmd(void *ptr)
         last_spec_shm_pos[msg->session_id] = cp(msg);
     else if (!strncmp(msg->cmd, "rm", 2) || !strncmp(msg->cmd, "del", 3))
         last_spec_shm_pos[msg->session_id] = rm(msg);
+    else if (!strncmp(msg->cmd, "chmod", 5) || !strncmp(msg->cmd, "del", 3))
+        last_spec_shm_pos[msg->session_id] = chm(msg);
     else
         last_spec_shm_pos[msg->session_id] = unknown(msg->session_id);
 

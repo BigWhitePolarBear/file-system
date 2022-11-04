@@ -39,3 +39,6 @@ int copy_from_host(uint32_t dir_ino, uint32_t uid, const char host_filename[], c
 // 将指定宿主文件复制到指定目录，成功返回 0 ，若权限不符合返回 -1 ，无法创建宿主文件返回 -2 ，
 // 内部出错返回 -3 。
 int copy_to_host(uint32_t ino, uint32_t uid, char host_dirname[], const char filename[]);
+
+// 修改指定目录或文件的权限，成功返回 0 ，权限不符合返回 -1 ，内部出错返回 -2 。
+int change_privilege(uint32_t ino, uint32_t uid, uint32_t privilege);

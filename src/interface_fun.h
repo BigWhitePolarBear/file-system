@@ -24,4 +24,6 @@ uint16_t cp(const msg_t *const msg);
 
 uint16_t rm(const msg_t *const msg);
 
+uint16_t chm(const msg_t *const msg);
+
 uint16_t unknown(uint32_t uid);

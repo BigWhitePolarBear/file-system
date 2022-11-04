@@ -1076,3 +1076,22 @@ int copy_to_host(uint32_t ino, uint32_t uid, char host_dirname[], const char fil
 
     return 0;
 }
+
+int change_privilege(uint32_t ino, uint32_t uid, uint32_t privilege)
+{
+    inode_t inode;
+    if (iread(ino, &inode))
+    {
+        printf("读取 inode 失败！\n");
+        return -2;
+    }
+    if (uid != 0 && inode.uid != uid)
+        return -1;
+    inode.privilege = privilege;
+    if (iwrite(ino, &inode))
+    {
+        printf("写入 inode 失败！\n");
+        return -2;
+    }
+    return 0;
+}

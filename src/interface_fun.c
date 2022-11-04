@@ -789,9 +789,7 @@ uint16_t rd(const msg_t *const msg)
                 return 5;
             default:
                 int ret = remove_dir(ino, session_id2uid(msg->session_id));
-                printf("1\n");
                 pthread_rwlock_unlock(inode_lock);
-                printf("1\n");
                 switch (ret)
                 {
                 case -1:
@@ -1398,6 +1396,8 @@ uint16_t rm(const msg_t *const msg)
         strcpy(cmd_dir, msg->cmd + 4);
 
     uint8_t cmd_dir_len = strlen(cmd_dir);
+    while (cmd_dir[cmd_dir_len - 1] == ' ')
+        cmd_dir[--cmd_dir_len] = 0;
 
     uint8_t l = 0, r = 0;
     uint32_t working_dir = working_dirs[session_id2uid(msg->session_id)];
@@ -1406,10 +1406,6 @@ uint16_t rm(const msg_t *const msg)
         working_dir = 0;
         l = r = 1;
     }
-    while (cmd_dir[cmd_dir_len - 1] == ' ')
-        cmd_dir[--cmd_dir_len] = 0;
-    while (cmd_dir[cmd_dir_len - 1] == '/')
-        cmd_dir[--cmd_dir_len] = 0;
 
     // 逐一分解 cmd_dir 中出现的目录。
     pthread_rwlock_wrlock(inode_lock);
@@ -1468,6 +1464,7 @@ uint16_t rm(const msg_t *const msg)
                 strcpy(spec_shm, "ERROR");
                 return 5;
             default:
+                assert(ino < (uint32_t)-4);
                 int ret = remove_file(ino, session_id2uid(msg->session_id));
                 pthread_rwlock_unlock(inode_lock);
                 switch (ret)
@@ -1493,6 +1490,121 @@ uint16_t rm(const msg_t *const msg)
     }
 
     return 0; // 若未出错， rm 不会有字符进入缓冲区。
+}
+
+uint16_t chm(const msg_t *const msg)
+{
+    void *spec_shm = spec_shms[session_id2uid(msg->session_id)];
+
+    if (strlen(msg->cmd) < 10)
+    {
+        strcpy(spec_shm, "chmod: 请正确输入参数和路径！");
+        return 40;
+    }
+    uint32_t privilege = (msg->cmd[6] - '0') * 8 + (msg->cmd[7] - '0');
+    if (privilege > 077)
+    {
+        strcpy(spec_shm, "chmod: 请正确输入参数和路径！");
+        return 40;
+    }
+    char cmd_dir[CMD_LEN - 9];
+    strcpy(cmd_dir, msg->cmd + 9);
+
+    uint8_t cmd_dir_len = strlen(cmd_dir);
+    while (cmd_dir[cmd_dir_len - 1] == ' ')
+        cmd_dir[--cmd_dir_len] = 0;
+
+    uint8_t l = 0, r = 0;
+    uint32_t working_dir = working_dirs[session_id2uid(msg->session_id)];
+    if (cmd_dir[0] == '/')
+    {
+        working_dir = 0;
+        l = r = 1;
+    }
+
+    while (cmd_dir[cmd_dir_len - 1] == '/')
+        cmd_dir[--cmd_dir_len] = 0;
+
+    // 逐一分解 cmd_dir 中出现的目录。
+    pthread_rwlock_wrlock(inode_lock);
+    while (1)
+    {
+        while (r < cmd_dir_len && cmd_dir[r] != '/')
+            r++;
+        if (r < cmd_dir_len)
+        {
+            if (r - l > FILE_NAME_LEN)
+            {
+                pthread_rwlock_unlock(inode_lock);
+                strcpy(spec_shm, "chmod: 文件或目录不存在！");
+                return 34;
+            }
+            char filename[FILE_NAME_LEN];
+            memset(filename, 0, FILE_NAME_LEN);
+            strncpy(filename, cmd_dir + l, r - l);
+            working_dir = search(working_dir, session_id2uid(msg->session_id), filename, NULL, false, false);
+            if (working_dir == -4)
+            {
+                pthread_rwlock_unlock(inode_lock);
+                strcpy(spec_shm, "ERROR");
+                return 5;
+            }
+            else if (working_dir == -1)
+            {
+                pthread_rwlock_unlock(inode_lock);
+                strcpy(spec_shm, "chmod: 文件或目录不存在！");
+                return 34;
+            }
+        }
+        else // 说明已经是最后一个目录。
+        {
+            if (r == l)
+            {
+                pthread_rwlock_unlock(inode_lock);
+                strcpy(spec_shm, "chmod: 文件或目录名不能为空！");
+                return 40;
+            }
+            if (r - l > FILE_NAME_LEN)
+            {
+                pthread_rwlock_unlock(inode_lock);
+                strcpy(spec_shm, "chmod: 文件或目录不存在！");
+                return 34;
+            }
+            uint32_t ino = search(working_dir, session_id2uid(msg->session_id), cmd_dir + l, NULL, false, false);
+            switch (ino)
+            {
+            case -1:
+                pthread_rwlock_unlock(inode_lock);
+                strcpy(spec_shm, "chmod: 文件或目录不存在！");
+                return 34;
+            case -4:
+                pthread_rwlock_unlock(inode_lock);
+                strcpy(spec_shm, "ERROR");
+                return 5;
+            default:
+                assert(ino < (uint32_t)-4);
+                int ret = change_privilege(ino, session_id2uid(msg->session_id), privilege);
+                pthread_rwlock_unlock(inode_lock);
+                switch (ret)
+                {
+                case -1:
+                    strcpy(spec_shm, "chmod: 权限不足！");
+                    return 22;
+                case -2:
+                    strcpy(spec_shm, "ERROR");
+                    return 5;
+                default:
+                    assert(ret == 0);
+                    break;
+                }
+            }
+            break;
+        }
+        r++;
+        l = r;
+    }
+
+    return 0; // 若未出错， chmod 不会有字符进入缓冲区。
 }
 
 uint16_t unknown(uint32_t uid)
