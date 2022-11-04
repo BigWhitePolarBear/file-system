@@ -8,7 +8,7 @@
 // 若操作文件或目录，不检查权限是否符合，限制更少，且函数名以_开头，使用前要注意。
 
 extern pthread_rwlock_t **inode_bitmap_locks, **data_bitmap_locks;
-extern pthread_rwlock_t *inode_lock, *data_lock, *sb_lock;
+extern pthread_rwlock_t *inode_lock, *sb_lock;
 
 int iread(uint32_t ino, inode_t *const inode);
 
@@ -19,7 +19,7 @@ void lock_init();
 
 // 超级块的持久化失败时直接退出系统，因此没有返回值。
 // 该函数也会更新超级块的最近修改时间。
-void sbwrite();
+void sbwrite(bool locked);
 void sbinit();
 
 bool check_privilege(const inode_t *const inode, uint32_t uid, uint32_t privilege);

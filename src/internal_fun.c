@@ -20,6 +20,7 @@ uint32_t search(uint32_t dir_ino, uint32_t uid, const char filename[], uint32_t 
     assert(dir_inode.type == 1);
     assert(dir_inode.size <= DIRECT_DIR_ENTRY_CNT + INDIRECT_DIR_ENTRY_CNT + DOUBLE_INDIRECT_DIR_ENTRY_CNT +
                                  TRIPLE_INDIRECT_DIR_ENTRY_CNT);
+
     indirectblock_t indirectb, double_indirectb, triple_indiectb;
     dirblock_t db;
     uint32_t dbno;
@@ -299,9 +300,8 @@ int create_file(uint32_t dir_ino, uint32_t uid, uint32_t type, const char filena
             printf("写入目录块失败！\n");
             return -5;
         }
-        sbwrite();
     }
-    sbwrite();
+    sbwrite(false);
     if (iwrite(de.ino, &inode))
     {
         printf("写入 inode 失败！\n");
@@ -337,7 +337,7 @@ int remove_file(uint32_t ino, uint32_t uid)
         printf("修改 inode bitmap 失败！\n");
         return -3;
     }
-    else
+    else if (inode.bcnt > 0)
     {
         indirectblock_t indirectb, double_indirectb, triple_indiectb;
         uint32_t indirectbno = 0, double_indirectbno = 0, triple_indirectbno = 0;
@@ -500,12 +500,12 @@ int remove_file(uint32_t ino, uint32_t uid)
             printf("修改数据块位图失败！\n");
             return -3;
         }
-    }
 
-    if (unset_inode_bitmap(ino))
-    {
-        printf("修改 inode bitmap 失败！\n");
-        return -3;
+        if (unset_inode_bitmap(ino))
+        {
+            printf("修改 inode bitmap 失败！\n");
+            return -3;
+        }
     }
 
     return 0;
@@ -545,6 +545,7 @@ int remove_dir(uint32_t ino, uint32_t uid)
         indirectblock_t indirectb, double_indirectb, triple_indiectb;
         dirblock_t db;
         uint32_t dbno = 0, indirectbno = 0, double_indirectbno = 0, triple_indirectbno = 0;
+
         if (bread(inode.direct_blocks[0], &db))
         {
             printf("读取目录块失败！\n");

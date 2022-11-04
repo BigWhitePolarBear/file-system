@@ -14,20 +14,27 @@ int set_inode_bitmap(uint32_t pos)
     pthread_rwlock_wrlock(inode_bitmap_locks[pos / BIT_PER_BLOCK]);
     if (bread(sb.inode_bitmap_start + pos / BIT_PER_BLOCK, &bb))
     {
+        pthread_rwlock_unlock(inode_bitmap_locks[pos / BIT_PER_BLOCK]);
         printf("读取位图失败！\n");
         return -1;
     }
     if (test_bitblock(&bb, pos % BIT_PER_BLOCK))
+    {
+        pthread_rwlock_unlock(inode_bitmap_locks[pos / BIT_PER_BLOCK]);
         return 0;
+    }
     set_bitblock(&bb, pos % BIT_PER_BLOCK);
     if (bwrite(sb.inode_bitmap_start + pos / BIT_PER_BLOCK, &bb))
     {
+        pthread_rwlock_unlock(inode_bitmap_locks[pos / BIT_PER_BLOCK]);
         printf("写入位图失败！\n");
         return -1;
     }
     pthread_rwlock_unlock(inode_bitmap_locks[pos / BIT_PER_BLOCK]);
+    pthread_rwlock_wrlock(sb_lock);
     sb.free_icnt--;
-    sbwrite();
+    sbwrite(true);
+    pthread_rwlock_unlock(sb_lock);
 
     return 0;
 }
@@ -41,20 +48,27 @@ int set_data_bitmap(uint32_t pos)
     pthread_rwlock_wrlock(data_bitmap_locks[pos / BIT_PER_BLOCK]);
     if (bread(sb.data_bitmap_start + pos / BIT_PER_BLOCK, &bb))
     {
+        pthread_rwlock_unlock(data_bitmap_locks[pos / BIT_PER_BLOCK]);
         printf("读取位图失败！\n");
         return -1;
     }
     if (test_bitblock(&bb, pos % BIT_PER_BLOCK))
+    {
+        pthread_rwlock_unlock(data_bitmap_locks[pos / BIT_PER_BLOCK]);
         return 0;
+    }
     set_bitblock(&bb, pos % BIT_PER_BLOCK);
     if (bwrite(sb.data_bitmap_start + pos / BIT_PER_BLOCK, &bb))
     {
+        pthread_rwlock_unlock(data_bitmap_locks[pos / BIT_PER_BLOCK]);
         printf("写入位图失败！\n");
         return -1;
     }
     pthread_rwlock_unlock(data_bitmap_locks[pos / BIT_PER_BLOCK]);
+    pthread_rwlock_wrlock(sb_lock);
     sb.free_data_bcnt--;
-    sbwrite();
+    sbwrite(true);
+    pthread_rwlock_unlock(sb_lock);
 
     return 0;
 }
@@ -67,20 +81,27 @@ int unset_inode_bitmap(uint32_t pos)
     pthread_rwlock_wrlock(inode_bitmap_locks[pos / BIT_PER_BLOCK]);
     if (bread(sb.inode_bitmap_start + pos / BIT_PER_BLOCK, &bb))
     {
+        pthread_rwlock_unlock(inode_bitmap_locks[pos / BIT_PER_BLOCK]);
         printf("读取位图失败！\n");
         return -1;
     }
     if (!test_bitblock(&bb, pos % BIT_PER_BLOCK))
+    {
+        pthread_rwlock_unlock(inode_bitmap_locks[pos / BIT_PER_BLOCK]);
         return 0;
+    }
     unset_bitblock(&bb, pos % BIT_PER_BLOCK);
     if (bwrite(sb.inode_bitmap_start + pos / BIT_PER_BLOCK, &bb))
     {
+        pthread_rwlock_unlock(inode_bitmap_locks[pos / BIT_PER_BLOCK]);
         printf("写入位图失败！\n");
         return -1;
     }
     pthread_rwlock_unlock(inode_bitmap_locks[pos / BIT_PER_BLOCK]);
+    pthread_rwlock_wrlock(sb_lock);
     sb.free_icnt++;
-    sbwrite();
+    sbwrite(true);
+    pthread_rwlock_unlock(sb_lock);
 
     return 0;
 }
@@ -94,20 +115,27 @@ int unset_data_bitmap(uint32_t pos)
     pthread_rwlock_wrlock(data_bitmap_locks[pos / BIT_PER_BLOCK]);
     if (bread(sb.data_bitmap_start + pos / BIT_PER_BLOCK, &bb))
     {
+        pthread_rwlock_unlock(data_bitmap_locks[pos / BIT_PER_BLOCK]);
         printf("读取位图失败！\n");
         return -1;
     }
     if (!test_bitblock(&bb, pos % BIT_PER_BLOCK))
+    {
+        pthread_rwlock_unlock(data_bitmap_locks[pos / BIT_PER_BLOCK]);
         return 0;
+    }
     unset_bitblock(&bb, pos % BIT_PER_BLOCK);
     if (bwrite(sb.data_bitmap_start + pos / BIT_PER_BLOCK, &bb))
     {
+        pthread_rwlock_unlock(data_bitmap_locks[pos / BIT_PER_BLOCK]);
         printf("写入位图失败！\n");
         return -1;
     }
     pthread_rwlock_unlock(data_bitmap_locks[pos / BIT_PER_BLOCK]);
+    pthread_rwlock_wrlock(sb_lock);
     sb.free_data_bcnt++;
-    sbwrite();
+    sbwrite(true);
+    pthread_rwlock_unlock(sb_lock);
 
     return 0;
 }
@@ -149,7 +177,7 @@ uint32_t get_free_inode()
 
     while (true)
     {
-        pthread_rwlock_wrlock(data_bitmap_locks[ino / BIT_PER_BLOCK]);
+        pthread_rwlock_wrlock(inode_bitmap_locks[ino / BIT_PER_BLOCK]);
         if (bread(sb.inode_bitmap_start + ino / BIT_PER_BLOCK, &bb))
         {
             printf("读取位图失败！\n");
@@ -162,13 +190,16 @@ uint32_t get_free_inode()
                 set_bitblock(&bb, ino % BIT_PER_BLOCK);
                 if (bwrite(sb.inode_bitmap_start + ino / BIT_PER_BLOCK, &bb))
                 {
+                    pthread_rwlock_unlock(inode_bitmap_locks[ino / BIT_PER_BLOCK]);
                     printf("写入位图失败！\n");
                     return -2;
                 }
-                pthread_rwlock_unlock(inode_bitmap_locks[(ino - 1) / BIT_PER_BLOCK]);
+                pthread_rwlock_unlock(inode_bitmap_locks[ino / BIT_PER_BLOCK]);
+                pthread_rwlock_wrlock(sb_lock);
                 sb.free_icnt--;
                 sb.last_alloc_inode = ino;
-                sbwrite();
+                sbwrite(true);
+                pthread_rwlock_unlock(sb_lock);
                 return ino;
             }
             if (ino < sb.icnt - 1)
@@ -185,7 +216,7 @@ uint32_t get_free_inode()
             // 避免死循环，如果以下 if 分支被执行，说明文件系统出现了不一致。
             if (ino == sb.last_alloc_inode)
             {
-                pthread_rwlock_unlock(inode_bitmap_locks[(ino - 1) / BIT_PER_BLOCK]);
+                pthread_rwlock_unlock(inode_bitmap_locks[ino / BIT_PER_BLOCK]);
                 printf("未找到空闲 inode ，无法分配！\n");
                 return -2;
             }
@@ -213,6 +244,7 @@ uint32_t get_free_data()
         pthread_rwlock_wrlock(data_bitmap_locks[bno / BIT_PER_BLOCK]);
         if (bread(sb.data_bitmap_start + bno / BIT_PER_BLOCK, &bb))
         {
+            pthread_rwlock_unlock(data_bitmap_locks[bno / BIT_PER_BLOCK]);
             printf("读取位图失败！\n");
             return -2;
         }
@@ -223,13 +255,16 @@ uint32_t get_free_data()
                 set_bitblock(&bb, bno % BIT_PER_BLOCK);
                 if (bwrite(sb.data_bitmap_start + bno / BIT_PER_BLOCK, &bb))
                 {
+                    pthread_rwlock_unlock(data_bitmap_locks[bno / BIT_PER_BLOCK]);
                     printf("写入位图失败！\n");
                     return -2;
                 }
-                pthread_rwlock_unlock(data_bitmap_locks[(bno - 1) / BIT_PER_BLOCK]);
+                pthread_rwlock_unlock(data_bitmap_locks[bno / BIT_PER_BLOCK]);
+                pthread_rwlock_wrlock(sb_lock);
                 sb.free_data_bcnt--;
                 sb.last_alloc_data = bno;
-                sbwrite();
+                sbwrite(true);
+                pthread_rwlock_unlock(sb_lock);
                 return sb.data_start + bno;
             }
             if (bno < sb.data_bcnt - 1)
@@ -246,7 +281,7 @@ uint32_t get_free_data()
             // 避免死循环，如果以下 if 分支被执行，说明文件系统出现了不一致。
             if (bno == sb.last_alloc_data)
             {
-                pthread_rwlock_unlock(data_bitmap_locks[(bno - 1) / BIT_PER_BLOCK]);
+                pthread_rwlock_unlock(data_bitmap_locks[bno / BIT_PER_BLOCK]);
                 printf("未找到空闲数据块，无法分配！\n");
                 return -2;
             }

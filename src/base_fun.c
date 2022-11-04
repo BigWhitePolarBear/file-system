@@ -9,7 +9,7 @@
 #include "time.h"
 
 pthread_rwlock_t **inode_bitmap_locks, **data_bitmap_locks;
-pthread_rwlock_t *inode_lock, *data_lock, *sb_lock;
+pthread_rwlock_t *inode_lock, *sb_lock;
 
 int iread(uint32_t ino, inode_t *const inode)
 {
@@ -42,7 +42,7 @@ int iwrite(uint32_t ino, const inode_t *const inode)
         printf("写入 inode 对应的数据块失败！\n");
         return -1;
     }
-    sbwrite();
+    sbwrite(false);
 
     return 0;
 }
@@ -74,10 +74,8 @@ void lock_init()
     }
 
     inode_lock = malloc(sizeof(pthread_rwlock_t));
-    data_lock = malloc(sizeof(pthread_rwlock_t));
     sb_lock = malloc(sizeof(pthread_rwlock_t));
-    if (pthread_rwlock_init(inode_lock, NULL) || pthread_rwlock_init(data_lock, NULL) ||
-        pthread_rwlock_init(sb_lock, NULL))
+    if (pthread_rwlock_init(inode_lock, NULL) || pthread_rwlock_init(sb_lock, NULL))
     {
         printf("锁初始化失败！\n");
         printf("致命错误，退出系统！\n");
@@ -85,9 +83,10 @@ void lock_init()
     }
 }
 
-void sbwrite()
+void sbwrite(bool locked)
 {
-    pthread_rwlock_wrlock(sb_lock);
+    if (!locked)
+        pthread_rwlock_wrlock(sb_lock);
     sb.last_wtime = (uint32_t)time(NULL);
     if (bwrite(0, &sb))
     {
@@ -95,7 +94,8 @@ void sbwrite()
         printf("致命错误，退出系统！\n");
         exit(-1);
     }
-    pthread_rwlock_unlock(sb_lock);
+    if (!locked)
+        pthread_rwlock_unlock(sb_lock);
 }
 
 void sbinit()
@@ -199,7 +199,7 @@ int _push_direntry(inode_t *const dir_inode, const direntry_t *const de)
                 printf("写入中间目录块失败！\n");
                 return -3;
             }
-            sbwrite();
+            sbwrite(false);
         }
         db_bno = indirectb.blocks[(dir_inode->size - INDIRECT_DIR_OFFSET) % DIR_ENTRY_PER_INDIRECT_BLOCK /
                                   DIR_ENTRY_PER_DIRECT_BLOCK];
@@ -261,7 +261,7 @@ int _push_direntry(inode_t *const dir_inode, const direntry_t *const de)
                 printf("写入二级中间目录块失败！\n");
                 return -3;
             }
-            sbwrite();
+            sbwrite(false);
         }
         if (bread(double_indirectb.blocks[(dir_inode->size - DOUBLE_INDIRECT_DIR_OFFSET) %
                                           DIR_ENTRY_PER_DOUBLE_INDIRECT_BLOCK / DIR_ENTRY_PER_INDIRECT_BLOCK],
@@ -293,7 +293,7 @@ int _push_direntry(inode_t *const dir_inode, const direntry_t *const de)
                 printf("写入中间目录块失败！\n");
                 return -3;
             }
-            sbwrite();
+            sbwrite(false);
         }
         db_bno = indirectb.blocks[(dir_inode->size - DOUBLE_INDIRECT_DIR_OFFSET) % DIR_ENTRY_PER_INDIRECT_BLOCK /
                                   DIR_ENTRY_PER_DIRECT_BLOCK];
@@ -355,7 +355,7 @@ int _push_direntry(inode_t *const dir_inode, const direntry_t *const de)
                 printf("写入三级中间目录块失败！\n");
                 return -3;
             }
-            sbwrite();
+            sbwrite(false);
         }
         if (bread(triple_indirectb.blocks[(dir_inode->size - TRIPLE_INDIRECT_DIR_OFFSET) %
                                           DIR_ENTRY_PER_TRIPLE_INDIRECT_BLOCK / DIR_ENTRY_PER_DOUBLE_INDIRECT_BLOCK],
@@ -390,7 +390,7 @@ int _push_direntry(inode_t *const dir_inode, const direntry_t *const de)
                 printf("写入二级中间目录块失败！\n");
                 return -3;
             }
-            sbwrite();
+            sbwrite(false);
         }
         if (bread(double_indirectb.blocks[(dir_inode->size - TRIPLE_INDIRECT_DIR_OFFSET) %
                                           DIR_ENTRY_PER_DOUBLE_INDIRECT_BLOCK / DIR_ENTRY_PER_INDIRECT_BLOCK],
@@ -422,7 +422,7 @@ int _push_direntry(inode_t *const dir_inode, const direntry_t *const de)
                 printf("写入中间目录块失败！\n");
                 return -3;
             }
-            sbwrite();
+            sbwrite(false);
         }
         db_bno = indirectb.blocks[(dir_inode->size - TRIPLE_INDIRECT_DIR_OFFSET) % DIR_ENTRY_PER_INDIRECT_BLOCK /
                                   DIR_ENTRY_PER_DIRECT_BLOCK];
@@ -439,6 +439,7 @@ int _push_direntry(inode_t *const dir_inode, const direntry_t *const de)
         printf("写入目录块失败！\n");
         return -3;
     }
+
     dir_inode->size++;
 
     return 0;

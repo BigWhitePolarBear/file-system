@@ -61,7 +61,7 @@ void mksb()
     for (uint8_t i = 1; i < MAX_USER_CNT; i++)
         memset(sb.users[i].pwd, 0, PWD_LEN);
 
-    sbwrite();
+    sbwrite(false);
 }
 
 int mkroot()
@@ -103,14 +103,14 @@ int mkbitmap()
     bitblock_t bb;
     memset(&bb, 0, BLOCK_SIZE);
     // 清空 bitmap 。
-    for (int i = sb.inode_bitmap_start; i < sb.data_bitmap_start + sb.data_bitmap_bcnt; i++)
+    for (int i = sb.inode_bitmap_start; i < sb.data_bitmap_start + DATA_BITMAP_BCNT; i++)
     {
         if (bwrite(i, &bb))
         {
             printf("写入位图失败！\n");
             return -1;
         }
-        sbwrite();
+        sbwrite(false);
     }
     set_inode_bitmap(0);
     set_data_bitmap(sb.data_start);

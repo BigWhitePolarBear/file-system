@@ -151,6 +151,7 @@ uint16_t cd(const msg_t *const msg)
     while (cmd_dir[cmd_dir_len - 1] == '/')
         cmd_dir[--cmd_dir_len] = 0;
     // 逐一分解 cmd_dir 中出现的目录。
+    pthread_rwlock_rdlock(inode_lock);
     while (1)
     {
         while (r < cmd_dir_len && cmd_dir[r] != '/')
@@ -159,6 +160,7 @@ uint16_t cd(const msg_t *const msg)
         {
             if (r - l > FILE_NAME_LEN)
             {
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "cd: 目录不存在！");
                 return 22;
             }
@@ -169,11 +171,13 @@ uint16_t cd(const msg_t *const msg)
             working_dir = search(working_dir, session_id2uid(msg->session_id), filename, &type, false, false);
             if (working_dir == -4)
             {
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "ERROR");
                 return 5;
             }
             else if (working_dir == -1 || type != 1)
             {
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "cd: 目录不存在！");
                 return 22;
             }
@@ -182,6 +186,7 @@ uint16_t cd(const msg_t *const msg)
         {
             if (r - l > FILE_NAME_LEN)
             {
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "cd: 目录不存在！");
                 return 22;
             }
@@ -189,11 +194,13 @@ uint16_t cd(const msg_t *const msg)
             uint32_t ino = search(working_dir, session_id2uid(msg->session_id), cmd_dir + l, &type, false, false);
             if (ino == -4)
             {
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "ERROR");
                 return 5;
             }
             else if (ino == -1 || type != 1)
             {
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "cd: 目录不存在！");
                 return 22;
             }
@@ -204,16 +211,18 @@ uint16_t cd(const msg_t *const msg)
                 inode_t inode;
                 if (iread(ino, &inode))
                 {
+                    pthread_rwlock_unlock(inode_lock);
                     printf("读取 inode 失败！\n");
                     strcpy(spec_shm, "ERROR");
                     return 5;
                 }
                 if (!check_privilege(&inode, session_id2uid(msg->session_id), 1))
                 {
+                    pthread_rwlock_unlock(inode_lock);
                     strcpy(spec_shm, "cd: 权限不足！");
                     return 19;
                 }
-
+                pthread_rwlock_unlock(inode_lock);
                 working_dirs[session_id2uid(msg->session_id)] = ino;
             }
 
@@ -250,6 +259,8 @@ uint16_t ls(const msg_t *const msg)
     uint32_t working_dir = working_dirs[session_id2uid(msg->session_id)];
     while (cmd_dir[cmd_dir_len - 1] == ' ')
         cmd_dir[--cmd_dir_len] = 0;
+
+    pthread_rwlock_rdlock(inode_lock);
     if (cmd_dir_len == 0)
         goto GetInfo;
 
@@ -276,6 +287,7 @@ uint16_t ls(const msg_t *const msg)
 
         if (r - l > FILE_NAME_LEN)
         {
+            pthread_rwlock_unlock(inode_lock);
             strcpy(spec_shm, "ls: 目录不存在！");
             return 22;
         }
@@ -286,11 +298,13 @@ uint16_t ls(const msg_t *const msg)
         working_dir = search(working_dir, session_id2uid(msg->session_id), filename, &type, false, false);
         if (working_dir == -4)
         {
+            pthread_rwlock_unlock(inode_lock);
             strcpy(spec_shm, "ERROR");
             return 5;
         }
         else if (working_dir == -1 || type != 1)
         {
+            pthread_rwlock_unlock(inode_lock);
             strcpy(spec_shm, "ls: 目录不存在！");
             return 22;
         }
@@ -305,6 +319,7 @@ GetInfo:
     inode_t dir_inode;
     if (iread(working_dir, &dir_inode))
     {
+        pthread_rwlock_unlock(inode_lock);
         printf("读取 inode 失败！\n");
         strcpy(spec_shm + i, "ERROR");
         return 5;
@@ -312,6 +327,7 @@ GetInfo:
     assert(dir_inode.type == 1);
     if (!check_privilege(&dir_inode, session_id2uid(msg->session_id), 4))
     {
+        pthread_rwlock_unlock(inode_lock);
         strcpy(spec_shm + i, "ls: 权限不足！");
         return 19;
     }
@@ -327,6 +343,7 @@ GetInfo:
             {
                 if (bread(dir_inode.direct_blocks[j / DIR_ENTRY_PER_DIRECT_BLOCK], &db))
                 {
+                    pthread_rwlock_unlock(inode_lock);
                     printf("读取目录块失败！\n");
                     strcpy(spec_shm, "ERROR");
                     return i > 5 ? i : 5;
@@ -338,6 +355,7 @@ GetInfo:
                     if (bread(dir_inode.indirect_blocks[(j - INDIRECT_DIR_OFFSET) / DIR_ENTRY_PER_INDIRECT_BLOCK],
                               &indirectb))
                     {
+                        pthread_rwlock_unlock(inode_lock);
                         printf("读取目录中间块失败！\n");
                         strcpy(spec_shm, "ERROR");
                         return i > 5 ? i : 5;
@@ -346,6 +364,7 @@ GetInfo:
                               .blocks[(j - INDIRECT_DIR_OFFSET) % DIR_ENTRY_PER_INDIRECT_BLOCK / DIRECT_DIR_ENTRY_CNT],
                           &db))
                 {
+                    pthread_rwlock_unlock(inode_lock);
                     printf("读取目录块失败！\n");
                     strcpy(spec_shm, "ERROR");
                     return i > 5 ? i : 5;
@@ -358,6 +377,7 @@ GetInfo:
                                                                DIR_ENTRY_PER_DOUBLE_INDIRECT_BLOCK],
                               &double_indirectb))
                     {
+                        pthread_rwlock_unlock(inode_lock);
                         printf("读取目录中间块失败！\n");
                         strcpy(spec_shm, "ERROR");
                         return i > 5 ? i : 5;
@@ -368,6 +388,7 @@ GetInfo:
                                                     DIR_ENTRY_PER_DOUBLE_INDIRECT_BLOCK / DIR_ENTRY_PER_INDIRECT_BLOCK],
                             &indirectb))
                     {
+                        pthread_rwlock_unlock(inode_lock);
                         printf("读取目录中间块失败！\n");
                         strcpy(spec_shm, "ERROR");
                         return i > 5 ? i : 5;
@@ -376,6 +397,7 @@ GetInfo:
                                            DIRECT_DIR_ENTRY_CNT],
                           &db))
                 {
+                    pthread_rwlock_unlock(inode_lock);
                     printf("读取目录块失败！\n");
                     strcpy(spec_shm, "ERROR");
                     return i > 5 ? i : 5;
@@ -388,6 +410,7 @@ GetInfo:
                                                                DIR_ENTRY_PER_TRIPLE_INDIRECT_BLOCK],
                               &triple_indiectb))
                     {
+                        pthread_rwlock_unlock(inode_lock);
                         printf("读取目录中间块失败！\n");
                         strcpy(spec_shm, "ERROR");
                         return i > 5 ? i : 5;
@@ -398,6 +421,7 @@ GetInfo:
                                           DIR_ENTRY_PER_DOUBLE_INDIRECT_BLOCK],
                               &double_indirectb))
                     {
+                        pthread_rwlock_unlock(inode_lock);
                         printf("读取目录中间块失败！\n");
                         strcpy(spec_shm, "ERROR");
                         return i > 5 ? i : 5;
@@ -408,6 +432,7 @@ GetInfo:
                                                     DIR_ENTRY_PER_DOUBLE_INDIRECT_BLOCK / DIR_ENTRY_PER_INDIRECT_BLOCK],
                             &indirectb))
                     {
+                        pthread_rwlock_unlock(inode_lock);
                         printf("读取目录中间块失败！\n");
                         strcpy(spec_shm, "ERROR");
                         return i > 5 ? i : 5;
@@ -416,6 +441,7 @@ GetInfo:
                                            DIRECT_DIR_ENTRY_CNT],
                           &db))
                 {
+                    pthread_rwlock_unlock(inode_lock);
                     printf("读取目录块失败！\n");
                     strcpy(spec_shm, "ERROR");
                     return i > 5 ? i : 5;
@@ -428,6 +454,7 @@ GetInfo:
             inode_t inode;
             if (iread(ino, &inode))
             {
+                pthread_rwlock_unlock(inode_lock);
                 printf("读取 inode 失败！\n");
                 strcpy(spec_shm, "ERROR");
                 return i > 5 ? i : 5;
@@ -531,6 +558,7 @@ GetInfo:
             }
         }
     }
+    pthread_rwlock_unlock(inode_lock);
     return i;
 }
 
@@ -559,6 +587,7 @@ uint16_t md(const msg_t *const msg)
         cmd_dir[--cmd_dir_len] = 0;
 
     // 逐一分解 cmd_dir 中出现的目录。
+    pthread_rwlock_wrlock(inode_lock);
     while (1)
     {
         while (r < cmd_dir_len && cmd_dir[r] != '/')
@@ -567,6 +596,7 @@ uint16_t md(const msg_t *const msg)
         {
             if (r - l > FILE_NAME_LEN)
             {
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "mkdir: 目录不存在！");
                 return 25;
             }
@@ -577,11 +607,13 @@ uint16_t md(const msg_t *const msg)
             working_dir = search(working_dir, session_id2uid(msg->session_id), filename, &type, false, false);
             if (working_dir == -4)
             {
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "ERROR");
                 return 5;
             }
             else if (working_dir == -1 || type != 1)
             {
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "mkdir: 目录不存在！");
                 return 25;
             }
@@ -590,23 +622,27 @@ uint16_t md(const msg_t *const msg)
         {
             if (r == l)
             {
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "mkdir: 目录名不能为空！");
                 return 31;
             }
             if (r - l > FILE_NAME_LEN)
             {
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "mkdir: 目录名过长！");
                 return 25;
             }
             uint32_t ino = search(working_dir, session_id2uid(msg->session_id), cmd_dir + l, NULL, false, false);
             if (ino == -4)
             {
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "ERROR");
                 return 5;
             }
             else if (ino == -1)
             {
                 int ret = create_file(working_dir, session_id2uid(msg->session_id), 1, cmd_dir + l);
+                pthread_rwlock_unlock(inode_lock);
                 switch (ret)
                 {
                 case -1:
@@ -632,6 +668,7 @@ uint16_t md(const msg_t *const msg)
             else
             {
                 assert(ino < (uint32_t)-4);
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "mkdir: 同名目录或文件已存在！");
                 return 40;
             }
@@ -684,6 +721,7 @@ uint16_t rd(const msg_t *const msg)
 
     while (cmd_dir[cmd_dir_len - 1] == '/')
         cmd_dir[--cmd_dir_len] = 0;
+    pthread_rwlock_wrlock(inode_lock);
     // 逐一分解 cmd_dir 中出现的目录。
     while (1)
     {
@@ -693,6 +731,7 @@ uint16_t rd(const msg_t *const msg)
         {
             if (r - l > FILE_NAME_LEN)
             {
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "rmdir: 目录不存在！");
                 return 25;
             }
@@ -703,11 +742,13 @@ uint16_t rd(const msg_t *const msg)
             working_dir = search(working_dir, session_id2uid(msg->session_id), filename, &type, false, false);
             if (working_dir == -4)
             {
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "ERROR");
                 return 5;
             }
             else if (working_dir == -1 || type != 1)
             {
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "rmdir: 目录不存在！");
                 return 25;
             }
@@ -717,11 +758,13 @@ uint16_t rd(const msg_t *const msg)
         {
             if (r == l)
             {
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "rmdir: 目录名不能为空！");
                 return 31;
             }
             if (r - l > FILE_NAME_LEN)
             {
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "rmdir: 目录不存在！");
                 return 25;
             }
@@ -729,19 +772,26 @@ uint16_t rd(const msg_t *const msg)
             switch (ino)
             {
             case -1:
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "rmdir: 目录不存在！");
                 return 25;
             case -2:
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "rmdir: 权限不足！");
                 return 22;
             case -3:
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "rmdir: 目录不为空，可添加 -f 参数强制删除！");
                 return 59;
             case -4:
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "ERROR");
                 return 5;
             default:
                 int ret = remove_dir(ino, session_id2uid(msg->session_id));
+                printf("1\n");
+                pthread_rwlock_unlock(inode_lock);
+                printf("1\n");
                 switch (ret)
                 {
                 case -1:
@@ -763,7 +813,6 @@ uint16_t rd(const msg_t *const msg)
         r++;
         l = r;
     }
-
     return 0; // 若未出错， rmdir 不会有字符进入缓冲区。
 }
 
@@ -790,6 +839,7 @@ uint16_t newfile(const msg_t *const msg)
         l = r = 1;
     }
     // 逐一分解 cmd_dir 中出现的目录。
+    pthread_rwlock_wrlock(inode_lock);
     while (1)
     {
         while (r < cmd_dir_len && cmd_dir[r] != '/')
@@ -798,6 +848,7 @@ uint16_t newfile(const msg_t *const msg)
         {
             if (r - l > FILE_NAME_LEN)
             {
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "newfile: 目录不存在！");
                 return 27;
             }
@@ -808,11 +859,13 @@ uint16_t newfile(const msg_t *const msg)
             working_dir = search(working_dir, session_id2uid(msg->session_id), filename, &type, false, false);
             if (working_dir == -4)
             {
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "ERROR");
                 return 5;
             }
             else if (working_dir == -1 || type != 1)
             {
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "newfile: 目录不存在！");
                 return 27;
             }
@@ -821,22 +874,26 @@ uint16_t newfile(const msg_t *const msg)
         {
             if (r == l)
             {
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "newfile:文件名不能为空！");
                 return 32;
             }
             if (r - l > FILE_NAME_LEN)
             {
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "newfile:文件名过长！");
                 return 26;
             }
             uint32_t ino = search(working_dir, session_id2uid(msg->session_id), cmd_dir + l, NULL, false, false);
             if (ino == -4)
             {
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "ERROR");
                 return 5;
             }
             else if (ino < (uint32_t)-4)
             {
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "newfile: 文件已存在！");
                 return 27;
             }
@@ -844,6 +901,7 @@ uint16_t newfile(const msg_t *const msg)
             {
                 assert(ino == (uint32_t)-1);
                 int ret = create_file(working_dir, session_id2uid(msg->session_id), 0, cmd_dir + l);
+                pthread_rwlock_unlock(inode_lock);
                 switch (ret)
                 {
                 case -1:
@@ -907,6 +965,7 @@ uint16_t cat(const msg_t *const msg)
         l = r = 1;
     }
     // 逐一分解 cmd_dir 中出现的目录。
+    pthread_rwlock_rdlock(inode_lock);
     while (1)
     {
         while (r < cmd_dir_len && cmd_dir[r] != '/')
@@ -915,6 +974,7 @@ uint16_t cat(const msg_t *const msg)
         {
             if (r - l > FILE_NAME_LEN)
             {
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "cat: 文件不存在！");
                 return 23;
             }
@@ -925,11 +985,13 @@ uint16_t cat(const msg_t *const msg)
             working_dir = search(working_dir, session_id2uid(msg->session_id), filename, &type, false, false);
             if (working_dir == -4)
             {
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "ERROR");
                 return 5;
             }
             else if (working_dir == -1 || type != 1)
             {
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "cat: 文件不存在！");
                 return 23;
             }
@@ -938,11 +1000,13 @@ uint16_t cat(const msg_t *const msg)
         {
             if (r == l)
             {
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "cat: 文件名不能为空！");
                 return 29;
             }
             if (r - l > FILE_NAME_LEN)
             {
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "cat: 文件不存在！");
                 return 23;
             }
@@ -950,15 +1014,18 @@ uint16_t cat(const msg_t *const msg)
             switch (ino)
             {
             case -1:
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "cat: 文件不存在！");
                 return 23;
             case -4:
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "ERROR");
                 return 5;
             default:
                 assert(ino < (uint32_t)-4);
                 datablock_t db;
                 int ret = read_file(ino, session_id2uid(msg->session_id), page, &db);
+                pthread_rwlock_unlock(inode_lock);
                 switch (ret)
                 {
                 case -1:
@@ -1035,6 +1102,7 @@ uint16_t cp(const msg_t *const msg)
     if (!strncmp(dst, "<host>", 6))
         dst_host = true;
 
+    pthread_rwlock_wrlock(inode_lock);
     if (!src_host)
     {
         uint8_t l = 0, r = 0;
@@ -1053,6 +1121,7 @@ uint16_t cp(const msg_t *const msg)
             {
                 if (r - l > FILE_NAME_LEN)
                 {
+                    pthread_rwlock_unlock(inode_lock);
                     strcpy(spec_shm, "cp: 源文件不存在！");
                     return 22;
                 }
@@ -1063,11 +1132,13 @@ uint16_t cp(const msg_t *const msg)
                 src_dir = search(src_dir, session_id2uid(msg->session_id), dirname, &type, false, false);
                 if (src_dir == -4)
                 {
+                    pthread_rwlock_unlock(inode_lock);
                     strcpy(spec_shm, "ERROR");
                     return 5;
                 }
                 else if (src_dir == -1 || type != 1)
                 {
+                    pthread_rwlock_unlock(inode_lock);
                     strcpy(spec_shm, "cp: 源文件不存在！");
                     return 25;
                 }
@@ -1076,11 +1147,13 @@ uint16_t cp(const msg_t *const msg)
             {
                 if (r == l)
                 {
+                    pthread_rwlock_unlock(inode_lock);
                     strcpy(spec_shm, "cp: 源文件名不能为空！");
                     return 31;
                 }
                 if (r - l > FILE_NAME_LEN)
                 {
+                    pthread_rwlock_unlock(inode_lock);
                     strcpy(spec_shm, "cp: 源文件不存在！");
                     return 25;
                 }
@@ -1089,15 +1162,18 @@ uint16_t cp(const msg_t *const msg)
                 ino = search(src_dir, session_id2uid(msg->session_id), src + l, &type, false, false);
                 if (type != 0)
                 {
+                    pthread_rwlock_unlock(inode_lock);
                     strcpy(spec_shm, "cp: 源文件不存在！");
                     return 25;
                 }
                 switch (ino)
                 {
                 case -1:
+                    pthread_rwlock_unlock(inode_lock);
                     strcpy(spec_shm, "cp: 源文件不存在！");
                     return 25;
                 case -4:
+                    pthread_rwlock_unlock(inode_lock);
                     strcpy(spec_shm, "ERROR");
                     return 5;
                 default:
@@ -1136,6 +1212,7 @@ uint16_t cp(const msg_t *const msg)
             {
                 if (r - l > FILE_NAME_LEN)
                 {
+                    pthread_rwlock_unlock(inode_lock);
                     strcpy(spec_shm, "cp: 目标目录不存在！");
                     return 28;
                 }
@@ -1146,11 +1223,13 @@ uint16_t cp(const msg_t *const msg)
                 dst_dir = search(dst_dir, session_id2uid(msg->session_id), dirname, &type, false, false);
                 if (dst_dir == -4)
                 {
+                    pthread_rwlock_unlock(inode_lock);
                     strcpy(spec_shm, "ERROR");
                     return 5;
                 }
                 else if (dst_dir == -1 || type != 1)
                 {
+                    pthread_rwlock_unlock(inode_lock);
                     strcpy(spec_shm, "cp: 目标目录不存在！");
                     return 28;
                 }
@@ -1159,6 +1238,7 @@ uint16_t cp(const msg_t *const msg)
             {
                 if (r - l > FILE_NAME_LEN)
                 {
+                    pthread_rwlock_unlock(inode_lock);
                     strcpy(spec_shm, "cp: 目标目录不存在！");
                     return 28;
                 }
@@ -1166,15 +1246,18 @@ uint16_t cp(const msg_t *const msg)
                 dir_ino = search(dst_dir, session_id2uid(msg->session_id), dst + l, &type, false, false);
                 if (type != 1)
                 {
+                    pthread_rwlock_unlock(inode_lock);
                     strcpy(spec_shm, "cp: 目标目录不存在！");
                     return 28;
                 }
                 switch (dir_ino)
                 {
                 case -1:
+                    pthread_rwlock_unlock(inode_lock);
                     strcpy(spec_shm, "cp: 目标目录不存在！");
                     return 28;
                 case -4:
+                    pthread_rwlock_unlock(inode_lock);
                     strcpy(spec_shm, "ERROR");
                     return 5;
                 default:
@@ -1195,12 +1278,14 @@ uint16_t cp(const msg_t *const msg)
 Copy:
     if (src_host && dst_host)
     {
+        pthread_rwlock_unlock(inode_lock);
         strcpy(spec_shm, "cp: 不支持 host 到 host 的复制！");
         return 40;
     }
     else if (!src_host && !dst_host)
     {
         int ret = copy_file(dir_ino, ino, session_id2uid(msg->session_id), filename);
+        pthread_rwlock_unlock(inode_lock);
         switch (ret)
         {
         case -1:
@@ -1235,11 +1320,13 @@ Copy:
             {
                 if (r == l)
                 {
+                    pthread_rwlock_unlock(inode_lock);
                     strcpy(spec_shm, "cp: 源文件名不能为空！");
                     return 31;
                 }
                 if (r - l > FILE_NAME_LEN)
                 {
+                    pthread_rwlock_unlock(inode_lock);
                     strcpy(spec_shm, "cp: 源文件名过长！");
                     return 25;
                 }
@@ -1250,6 +1337,7 @@ Copy:
             l = r;
         }
         int ret = copy_from_host(dir_ino, session_id2uid(msg->session_id), src + 6, filename);
+        pthread_rwlock_unlock(inode_lock);
         switch (ret)
         {
         case -1:
@@ -1278,6 +1366,7 @@ Copy:
     else if (dst_host)
     {
         int ret = copy_to_host(ino, session_id2uid(msg->session_id), dst + 6, filename);
+        pthread_rwlock_unlock(inode_lock);
         switch (ret)
         {
         case -1:
@@ -1323,6 +1412,7 @@ uint16_t rm(const msg_t *const msg)
         cmd_dir[--cmd_dir_len] = 0;
 
     // 逐一分解 cmd_dir 中出现的目录。
+    pthread_rwlock_wrlock(inode_lock);
     while (1)
     {
         while (r < cmd_dir_len && cmd_dir[r] != '/')
@@ -1331,6 +1421,7 @@ uint16_t rm(const msg_t *const msg)
         {
             if (r - l > FILE_NAME_LEN)
             {
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "rm: 文件不存在！");
                 return 22;
             }
@@ -1340,11 +1431,13 @@ uint16_t rm(const msg_t *const msg)
             working_dir = search(working_dir, session_id2uid(msg->session_id), filename, NULL, false, false);
             if (working_dir == -4)
             {
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "ERROR");
                 return 5;
             }
             else if (working_dir == -1)
             {
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "rm: 文件不存在！");
                 return 22;
             }
@@ -1353,11 +1446,13 @@ uint16_t rm(const msg_t *const msg)
         {
             if (r == l)
             {
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "rm: 文件名不能为空！");
                 return 28;
             }
             if (r - l > FILE_NAME_LEN)
             {
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "rm: 文件不存在！");
                 return 22;
             }
@@ -1365,13 +1460,16 @@ uint16_t rm(const msg_t *const msg)
             switch (ino)
             {
             case -1:
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "rm: 文件不存在！");
                 return 22;
             case -4:
+                pthread_rwlock_unlock(inode_lock);
                 strcpy(spec_shm, "ERROR");
                 return 5;
             default:
                 int ret = remove_file(ino, session_id2uid(msg->session_id));
+                pthread_rwlock_unlock(inode_lock);
                 switch (ret)
                 {
                 case -1:
