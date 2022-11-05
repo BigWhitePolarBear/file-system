@@ -1,6 +1,6 @@
 #pragma once
 
-#include "stdint.h"
+#include "common.h"
 
 #define SHM_NAME "fs"
 #define SEM_MUTEX_NAME "fs_mutex"
@@ -9,7 +9,6 @@
 #define SHM_SIZE 128
 #define CMD_LEN (SHM_SIZE - 4)
 #define IN_SEM_PERM (S_IRWXU | S_IRWXG | S_IRWXO)
-#define MAX_USER_CNT 16
 #define MAX_SESSION_PER_USER 4
 #define TIMESTAMP_LEN 13
 #define SPEC_SHM_SIZE BLOCK_SIZE
