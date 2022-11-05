@@ -5,7 +5,7 @@
 // 文件系统布局：
 // | 超级块 | inode Table | inode 位图 | 数据块位图 | 数据块 |
 
-#define DISK_SIZE (100 * 1024 * 1024)
+#define DISK_SIZE (1024 * 1024 * 1024)
 #define BLOCK_SIZE 1024
 #define BIT_PER_BLOCK (8 * BLOCK_SIZE)
 #define BLOCK_CNT (DISK_SIZE / BLOCK_SIZE)
