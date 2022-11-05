@@ -1268,6 +1268,9 @@ uint16_t rm(const msg_t *const msg)
         pthread_rwlock_unlock(inode_lock);
         strcpy(spec_shm, "rm: 文件不存在！");
         return 22;
+    case -2:
+        strcpy(spec_shm, "rm: 权限不足！");
+        return 19;
     case -4:
         pthread_rwlock_unlock(inode_lock);
         strcpy(spec_shm, "ERROR");
