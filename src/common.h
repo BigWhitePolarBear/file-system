@@ -3,7 +3,7 @@
 #include "stdint.h"
 
 // 文件系统布局：
-// | 超级块 | inode Table | inode 位图 | 数据块位图 | 数据块 |
+// | 超级块 | INode Table | INode 位图 | 数据块位图 | 数据块 |
 
 #define DISK_SIZE (1024 * 1024 * 1024)
 #define BLOCK_SIZE 1024
