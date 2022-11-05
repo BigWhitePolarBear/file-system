@@ -10,6 +10,13 @@
 
 int login(uint32_t uid, const char pwd[])
 {
+    // 视为未注册。
+    if (strlen(sb.users[uid].pwd) == 0)
+    {
+        strncpy(sb.users[uid].pwd, pwd, PWD_LEN);
+        sbwrite(false);
+        return 1;
+    }
     return !strncmp(sb.users[uid].pwd, pwd, PWD_LEN);
 }
 
@@ -125,7 +132,7 @@ uint16_t info(uint32_t uid)
 
 uint16_t cd(const msg_t *const msg)
 {
-    void *spec_shm = spec_shms[session_id2uid(msg->session_id)];
+    void *spec_shm = spec_shms[msg->session_id];
 
     char cmd_dir[CMD_LEN - 3];
     strcpy(cmd_dir, msg->cmd + 3);
@@ -136,12 +143,12 @@ uint16_t cd(const msg_t *const msg)
         return 0;
 
     uint8_t l = 0, r = 0;
-    uint32_t working_dir = working_dirs[session_id2uid(msg->session_id)];
+    uint32_t working_dir = working_dirs[msg->session_id];
     if (cmd_dir[0] == '/')
     {
         if (cmd_dir_len == 1)
         {
-            working_dirs[session_id2uid(msg->session_id)] = 0;
+            working_dirs[msg->session_id] = 0;
             return 0;
         }
         working_dir = 0;
@@ -203,7 +210,7 @@ uint16_t cd(const msg_t *const msg)
             return 19;
         }
         pthread_rwlock_unlock(inode_lock);
-        working_dirs[session_id2uid(msg->session_id)] = ino;
+        working_dirs[msg->session_id] = ino;
     }
 
     return 0; // 若未出错， cd 不会有字符进入缓冲区。
@@ -212,7 +219,7 @@ uint16_t cd(const msg_t *const msg)
 uint16_t ls(const msg_t *const msg)
 {
     uint32_t i = 0;
-    void *spec_shm = spec_shms[session_id2uid(msg->session_id)];
+    void *spec_shm = spec_shms[msg->session_id];
 
     char cmd_dir[CMD_LEN - 3];
     bool detail;
@@ -231,7 +238,7 @@ uint16_t ls(const msg_t *const msg)
             strcpy(cmd_dir, msg->cmd + 4);
     }
     uint8_t cmd_dir_len = strlen(cmd_dir);
-    uint32_t working_dir = working_dirs[session_id2uid(msg->session_id)];
+    uint32_t working_dir = working_dirs[msg->session_id];
     while (cmd_dir[cmd_dir_len - 1] == ' ')
         cmd_dir[--cmd_dir_len] = 0;
 
@@ -244,7 +251,7 @@ uint16_t ls(const msg_t *const msg)
     {
         if (cmd_dir_len == 1)
         {
-            working_dirs[session_id2uid(msg->session_id)] = 0;
+            working_dirs[msg->session_id] = 0;
             return 0;
         }
         working_dir = 0;
@@ -539,7 +546,7 @@ GetInfo:
 
 uint16_t md(const msg_t *const msg)
 {
-    void *spec_shm = spec_shms[session_id2uid(msg->session_id)];
+    void *spec_shm = spec_shms[msg->session_id];
 
     char cmd_dir[CMD_LEN - 3];
     // 不会出现 else 场景，以下写法为了代码可读性。
@@ -552,7 +559,7 @@ uint16_t md(const msg_t *const msg)
         cmd_dir[--cmd_dir_len] = 0;
 
     uint8_t l = 0, r = 0;
-    uint32_t working_dir = working_dirs[session_id2uid(msg->session_id)];
+    uint32_t working_dir = working_dirs[msg->session_id];
     if (cmd_dir[0] == '/')
     {
         working_dir = 0;
@@ -632,7 +639,7 @@ uint16_t md(const msg_t *const msg)
 uint16_t rd(const msg_t *const msg)
 {
     bool force = false;
-    void *spec_shm = spec_shms[session_id2uid(msg->session_id)];
+    void *spec_shm = spec_shms[msg->session_id];
 
     char cmd_dir[CMD_LEN - 3];
     // 不会出现 else 场景，以下写法为了代码可读性。
@@ -661,7 +668,7 @@ uint16_t rd(const msg_t *const msg)
         cmd_dir[--cmd_dir_len] = 0;
 
     uint8_t l = 0, r = 0;
-    uint32_t working_dir = working_dirs[session_id2uid(msg->session_id)];
+    uint32_t working_dir = working_dirs[msg->session_id];
     if (cmd_dir[0] == '/')
     {
         working_dir = 0;
@@ -739,7 +746,7 @@ uint16_t rd(const msg_t *const msg)
 
 uint16_t newfile(const msg_t *const msg)
 {
-    void *spec_shm = spec_shms[session_id2uid(msg->session_id)];
+    void *spec_shm = spec_shms[msg->session_id];
 
     char cmd_dir[CMD_LEN - 8];
     strcpy(cmd_dir, msg->cmd + 8);
@@ -748,12 +755,12 @@ uint16_t newfile(const msg_t *const msg)
         cmd_dir[--cmd_dir_len] = 0;
 
     uint8_t l = 0, r = 0;
-    uint32_t working_dir = working_dirs[session_id2uid(msg->session_id)];
+    uint32_t working_dir = working_dirs[msg->session_id];
     if (cmd_dir[0] == '/')
     {
         if (cmd_dir_len == 1)
         {
-            working_dirs[session_id2uid(msg->session_id)] = 0;
+            working_dirs[msg->session_id] = 0;
             return 0;
         }
         working_dir = 0;
@@ -831,7 +838,7 @@ uint16_t newfile(const msg_t *const msg)
 
 uint16_t cat(const msg_t *const msg)
 {
-    void *spec_shm = spec_shms[session_id2uid(msg->session_id)];
+    void *spec_shm = spec_shms[msg->session_id];
 
     uint32_t page = 0;
     char cmd_dir[CMD_LEN - 3];
@@ -855,7 +862,7 @@ uint16_t cat(const msg_t *const msg)
         cmd_dir[--cmd_dir_len] = 0;
 
     uint8_t l = 0, r = 0;
-    uint32_t working_dir = working_dirs[session_id2uid(msg->session_id)];
+    uint32_t working_dir = working_dirs[msg->session_id];
     if (cmd_dir[0] == '/')
     {
         working_dir = 0;
@@ -929,7 +936,7 @@ uint16_t cat(const msg_t *const msg)
 
 uint16_t cp(const msg_t *const msg)
 {
-    void *spec_shm = spec_shms[session_id2uid(msg->session_id)];
+    void *spec_shm = spec_shms[msg->session_id];
 
     char filename[FILE_NAME_LEN];
     char src[CMD_LEN - 4], dst[CMD_LEN - 4];
@@ -979,7 +986,7 @@ uint16_t cp(const msg_t *const msg)
     if (!src_host)
     {
         uint8_t l = 0, r = 0;
-        uint32_t src_dir = working_dirs[session_id2uid(msg->session_id)];
+        uint32_t src_dir = working_dirs[msg->session_id];
         if (src[0] == '/')
         {
             src_dir = 0;
@@ -1208,7 +1215,7 @@ Copy:
 
 uint16_t rm(const msg_t *const msg)
 {
-    void *spec_shm = spec_shms[session_id2uid(msg->session_id)];
+    void *spec_shm = spec_shms[msg->session_id];
 
     char cmd_dir[CMD_LEN - 3];
     // 不会出现 else 场景，以下写法为了代码可读性。
@@ -1222,7 +1229,7 @@ uint16_t rm(const msg_t *const msg)
         cmd_dir[--cmd_dir_len] = 0;
 
     uint8_t l = 0, r = 0;
-    uint32_t working_dir = working_dirs[session_id2uid(msg->session_id)];
+    uint32_t working_dir = working_dirs[msg->session_id];
     if (cmd_dir[0] == '/')
     {
         working_dir = 0;
@@ -1291,7 +1298,7 @@ uint16_t rm(const msg_t *const msg)
 
 uint16_t chm(const msg_t *const msg)
 {
-    void *spec_shm = spec_shms[session_id2uid(msg->session_id)];
+    void *spec_shm = spec_shms[msg->session_id];
 
     if (strlen(msg->cmd) < 10)
     {
@@ -1312,7 +1319,7 @@ uint16_t chm(const msg_t *const msg)
         cmd_dir[--cmd_dir_len] = 0;
 
     uint8_t l = 0, r = 0;
-    uint32_t working_dir = working_dirs[session_id2uid(msg->session_id)];
+    uint32_t working_dir = working_dirs[msg->session_id];
     if (cmd_dir[0] == '/')
     {
         working_dir = 0;
