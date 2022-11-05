@@ -6,6 +6,10 @@
 #include "stdio.h"
 #include "string.h"
 
+bool test_bitblock(const bitblock_t *const bb, uint32_t pos);
+void set_bitblock(bitblock_t *const bb, uint32_t pos);
+void unset_bitblock(bitblock_t *const bb, uint32_t pos);
+
 int set_inode_bitmap(uint32_t pos)
 {
     assert(pos < sb.icnt);

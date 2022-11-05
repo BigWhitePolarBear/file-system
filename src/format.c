@@ -112,6 +112,7 @@ int mkbitmap()
         }
         sbwrite(false);
     }
+    // 已分配给根目录。
     set_inode_bitmap(0);
     set_data_bitmap(sb.data_start);
     return 0;
