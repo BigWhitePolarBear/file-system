@@ -195,7 +195,7 @@ void handle_msg()
                 sem_post(out_ready);
                 pthread_t thread;
                 pthread_create(&thread, NULL, &handle_cmd, &msg);
-                pthread_join(thread, NULL);
+                pthread_detach(thread);
             }
         }
     }
