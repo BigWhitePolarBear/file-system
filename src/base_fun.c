@@ -545,7 +545,6 @@ int _read_file(const inode_t *const inode, uint32_t page, datablock_t *const db)
 
     assert(page <= inode->bcnt);
 
-    indirectblock_t indirectb, double_indirectb, triple_indirectb;
     if (page < DIRECT_DATA_BLOCK_CNT)
     {
         if (bread(inode->direct_blocks[page], db))
@@ -556,14 +555,12 @@ int _read_file(const inode_t *const inode, uint32_t page, datablock_t *const db)
     }
     else if (page - INDIRECT_DATA_BLOCK_OFFSET < INDIRECT_DATA_BLOCK_CNT)
     {
-        if ((page - INDIRECT_DATA_BLOCK_OFFSET) % DATA_BLOCK_PER_INDIRECT_BLOCK == 0)
+        indirectblock_t indirectb;
+        if (bread(inode->indirect_blocks[(page - INDIRECT_DATA_BLOCK_OFFSET) / DATA_BLOCK_PER_INDIRECT_BLOCK],
+                  &indirectb))
         {
-            if (bread(inode->indirect_blocks[(page - INDIRECT_DATA_BLOCK_OFFSET) / DATA_BLOCK_PER_INDIRECT_BLOCK],
-                      &indirectb))
-            {
-                printf("读取目录中间块失败！\n");
-                return -1;
-            }
+            printf("读取目录中间块失败！\n");
+            return -1;
         }
         if (bread(indirectb.blocks[(page - INDIRECT_DATA_BLOCK_OFFSET) % DATA_BLOCK_PER_INDIRECT_BLOCK], db))
         {
@@ -573,25 +570,20 @@ int _read_file(const inode_t *const inode, uint32_t page, datablock_t *const db)
     }
     else if ((page - DOUBLE_INDIRECT_DATA_BLOCK_OFFSET) < DOUBLE_INDIRECT_DATA_BLOCK_CNT)
     {
-        if ((page - DOUBLE_INDIRECT_DATA_BLOCK_OFFSET) % DATA_BLOCK_PER_DOUBLE_INDIRECT_BLOCK == 0)
+        indirectblock_t indirectb, double_indirectb;
+        if (bread(inode->double_indirect_blocks[(page - DOUBLE_INDIRECT_DATA_BLOCK_OFFSET) /
+                                                DATA_BLOCK_PER_DOUBLE_INDIRECT_BLOCK],
+                  &double_indirectb))
         {
-            if (bread(inode->double_indirect_blocks[(page - DOUBLE_INDIRECT_DATA_BLOCK_OFFSET) /
-                                                    DATA_BLOCK_PER_DOUBLE_INDIRECT_BLOCK],
-                      &double_indirectb))
-            {
-                printf("读取二级目录中间块失败！\n");
-                return -1;
-            }
+            printf("读取二级目录中间块失败！\n");
+            return -1;
         }
-        if ((page - DOUBLE_INDIRECT_DATA_BLOCK_OFFSET) % DATA_BLOCK_PER_INDIRECT_BLOCK == 0)
+        if (bread(double_indirectb.blocks[(page - DOUBLE_INDIRECT_DATA_BLOCK_OFFSET) %
+                                          DATA_BLOCK_PER_DOUBLE_INDIRECT_BLOCK / DATA_BLOCK_PER_INDIRECT_BLOCK],
+                  &indirectb))
         {
-            if (bread(double_indirectb.blocks[(page - DOUBLE_INDIRECT_DATA_BLOCK_OFFSET) %
-                                              DATA_BLOCK_PER_DOUBLE_INDIRECT_BLOCK / DATA_BLOCK_PER_INDIRECT_BLOCK],
-                      &indirectb))
-            {
-                printf("读取目录中间块失败！\n");
-                return -1;
-            }
+            printf("读取目录中间块失败！\n");
+            return -1;
         }
         if (bread(indirectb.blocks[(page - DOUBLE_INDIRECT_DATA_BLOCK_OFFSET) % DATA_BLOCK_PER_INDIRECT_BLOCK], db))
         {
@@ -601,36 +593,27 @@ int _read_file(const inode_t *const inode, uint32_t page, datablock_t *const db)
     }
     else
     {
-        if ((page - TRIPLE_INDIRECT_DATA_BLOCK_OFFSET) % DATA_BLOCK_PER_TRIPLE_INDIRECT_BLOCK == 0)
+        indirectblock_t indirectb, double_indirectb, triple_indirectb;
+        if (bread(inode->triple_indirect_blocks[(page - TRIPLE_INDIRECT_DATA_BLOCK_OFFSET) /
+                                                DATA_BLOCK_PER_TRIPLE_INDIRECT_BLOCK],
+                  &triple_indirectb))
         {
-            if (bread(inode->triple_indirect_blocks[(page - TRIPLE_INDIRECT_DATA_BLOCK_OFFSET) /
-                                                    DATA_BLOCK_PER_TRIPLE_INDIRECT_BLOCK],
-                      &triple_indirectb))
-            {
-                printf("读取三级目录中间块失败！\n");
-                return -1;
-            }
+            printf("读取三级目录中间块失败！\n");
+            return -1;
         }
-        if ((page - TRIPLE_INDIRECT_DATA_BLOCK_OFFSET) % DATA_BLOCK_PER_DOUBLE_INDIRECT_BLOCK == 0)
+        if (bread(triple_indirectb.blocks[(page - TRIPLE_INDIRECT_DATA_BLOCK_OFFSET) %
+                                          DATA_BLOCK_PER_TRIPLE_INDIRECT_BLOCK / DATA_BLOCK_PER_DOUBLE_INDIRECT_BLOCK],
+                  &double_indirectb))
         {
-            if (bread(triple_indirectb
-                          .blocks[(page - TRIPLE_INDIRECT_DATA_BLOCK_OFFSET) % DATA_BLOCK_PER_TRIPLE_INDIRECT_BLOCK /
-                                  DATA_BLOCK_PER_DOUBLE_INDIRECT_BLOCK],
-                      &double_indirectb))
-            {
-                printf("读取二级目录中间块失败！\n");
-                return -1;
-            }
+            printf("读取二级目录中间块失败！\n");
+            return -1;
         }
-        if ((page - TRIPLE_INDIRECT_DATA_BLOCK_OFFSET) % DATA_BLOCK_PER_INDIRECT_BLOCK == 0)
+        if (bread(double_indirectb.blocks[(page - TRIPLE_INDIRECT_DATA_BLOCK_OFFSET) %
+                                          DATA_BLOCK_PER_DOUBLE_INDIRECT_BLOCK / DATA_BLOCK_PER_INDIRECT_BLOCK],
+                  &indirectb))
         {
-            if (bread(double_indirectb.blocks[(page - TRIPLE_INDIRECT_DATA_BLOCK_OFFSET) %
-                                              DATA_BLOCK_PER_DOUBLE_INDIRECT_BLOCK / DATA_BLOCK_PER_INDIRECT_BLOCK],
-                      &indirectb))
-            {
-                printf("读取目录中间块失败！\n");
-                return -1;
-            }
+            printf("读取目录中间块失败！\n");
+            return -1;
         }
         if (bread(indirectb.blocks[(page - TRIPLE_INDIRECT_DATA_BLOCK_OFFSET) % DATA_BLOCK_PER_INDIRECT_BLOCK], db))
         {
@@ -647,11 +630,6 @@ int _append_block(inode_t *const inode, const datablock_t *const db)
     assert(inode->bcnt < DIRECT_DATA_BLOCK_CNT + INDIRECT_DATA_BLOCK_CNT + DOUBLE_INDIRECT_DATA_BLOCK_CNT +
                              TRIPLE_INDIRECT_DATA_BLOCK_CNT);
 
-    indirectblock_t indirectb, double_indirectb, triple_indirectb;
-    memset(&indirectb, 0, BLOCK_SIZE);
-    memset(&double_indirectb, 0, BLOCK_SIZE);
-    memset(&triple_indirectb, 0, BLOCK_SIZE);
-    uint32_t indirectbno = 0, double_indirectbno = 0, triple_indirectbno = 0;
     if (inode->bcnt < DIRECT_DATA_BLOCK_CNT)
     {
         inode->direct_blocks[inode->bcnt] = get_free_data();
@@ -673,17 +651,12 @@ int _append_block(inode_t *const inode, const datablock_t *const db)
     }
     else if (inode->bcnt - INDIRECT_DATA_BLOCK_OFFSET < INDIRECT_DATA_BLOCK_CNT)
     {
+        indirectblock_t indirectb;
         if ((inode->bcnt - INDIRECT_DATA_BLOCK_OFFSET) % DATA_BLOCK_PER_INDIRECT_BLOCK == 0)
         {
-            if (indirectbno && bwrite(indirectbno, &indirectb))
-            {
-                printf("写入目录中间块失败！\n");
-                return -2;
-            }
-            indirectbno =
-                inode->indirect_blocks[(inode->bcnt - INDIRECT_DATA_BLOCK_OFFSET) / DATA_BLOCK_PER_INDIRECT_BLOCK] =
-                    get_free_data();
-            switch (indirectbno)
+            inode->indirect_blocks[(inode->bcnt - INDIRECT_DATA_BLOCK_OFFSET) / DATA_BLOCK_PER_INDIRECT_BLOCK] =
+                get_free_data();
+            switch (inode->indirect_blocks[(inode->bcnt - INDIRECT_DATA_BLOCK_OFFSET) / DATA_BLOCK_PER_INDIRECT_BLOCK])
             {
             case -1:
                 return -1;
@@ -693,6 +666,12 @@ int _append_block(inode_t *const inode, const datablock_t *const db)
             default:
                 break;
             }
+        }
+        if (bread(inode->indirect_blocks[(inode->bcnt - INDIRECT_DATA_BLOCK_OFFSET) / DATA_BLOCK_PER_INDIRECT_BLOCK],
+                  &indirectb))
+        {
+            printf("读取中间数据块失败！\n");
+            return -2;
         }
         indirectb.blocks[(inode->bcnt - INDIRECT_DATA_BLOCK_OFFSET) % DATA_BLOCK_PER_INDIRECT_BLOCK] = get_free_data();
         switch (indirectb.blocks[(inode->bcnt - INDIRECT_DATA_BLOCK_OFFSET) % DATA_BLOCK_PER_INDIRECT_BLOCK])
@@ -705,6 +684,12 @@ int _append_block(inode_t *const inode, const datablock_t *const db)
         default:
             break;
         }
+        if (bwrite(inode->indirect_blocks[(inode->bcnt - INDIRECT_DATA_BLOCK_OFFSET) / DATA_BLOCK_PER_INDIRECT_BLOCK],
+                   &indirectb))
+        {
+            printf("写入中间数据块失败！\n");
+            return -2;
+        }
         if (bwrite(indirectb.blocks[(inode->bcnt - INDIRECT_DATA_BLOCK_OFFSET) % DATA_BLOCK_PER_INDIRECT_BLOCK], db))
         {
             printf("写入数据块失败！\n");
@@ -713,16 +698,13 @@ int _append_block(inode_t *const inode, const datablock_t *const db)
     }
     else if ((inode->bcnt - DOUBLE_INDIRECT_DATA_BLOCK_OFFSET) < DOUBLE_INDIRECT_DATA_BLOCK_CNT)
     {
+        indirectblock_t indirectb, double_indirectb;
         if ((inode->bcnt - DOUBLE_INDIRECT_DATA_BLOCK_OFFSET) % DATA_BLOCK_PER_DOUBLE_INDIRECT_BLOCK == 0)
         {
-            if (double_indirectbno && bwrite(indirectbno, &double_indirectb))
-            {
-                printf("写入二级目录中间块失败！\n");
-                return -2;
-            }
-            double_indirectbno = inode->double_indirect_blocks[(inode->bcnt - DOUBLE_INDIRECT_DATA_BLOCK_OFFSET) /
-                                                               DATA_BLOCK_PER_DOUBLE_INDIRECT_BLOCK] = get_free_data();
-            switch (double_indirectbno)
+            inode->double_indirect_blocks[(inode->bcnt - DOUBLE_INDIRECT_DATA_BLOCK_OFFSET) /
+                                          DATA_BLOCK_PER_DOUBLE_INDIRECT_BLOCK] = get_free_data();
+            switch (inode->double_indirect_blocks[(inode->bcnt - DOUBLE_INDIRECT_DATA_BLOCK_OFFSET) /
+                                                  DATA_BLOCK_PER_DOUBLE_INDIRECT_BLOCK])
             {
             case -1:
                 return -1;
@@ -733,18 +715,20 @@ int _append_block(inode_t *const inode, const datablock_t *const db)
                 break;
             }
         }
+        if (bread(inode->double_indirect_blocks[(inode->bcnt - DOUBLE_INDIRECT_DATA_BLOCK_OFFSET) /
+                                                DATA_BLOCK_PER_DOUBLE_INDIRECT_BLOCK],
+                  &double_indirectb))
+        {
+            printf("读取二级中间数据块失败！\n");
+            return -2;
+        }
         if ((inode->bcnt - DOUBLE_INDIRECT_DATA_BLOCK_OFFSET) % DATA_BLOCK_PER_INDIRECT_BLOCK == 0)
         {
-            if (indirectbno && bwrite(indirectbno, &indirectb))
-            {
-                printf("写入目录中间块失败！\n");
-                return -2;
-            }
-            indirectbno =
-                double_indirectb.blocks[(inode->bcnt - DOUBLE_INDIRECT_DATA_BLOCK_OFFSET) %
-                                        DATA_BLOCK_PER_DOUBLE_INDIRECT_BLOCK / DATA_BLOCK_PER_INDIRECT_BLOCK] =
-                    get_free_data();
-            switch (indirectbno)
+            double_indirectb.blocks[(inode->bcnt - DOUBLE_INDIRECT_DATA_BLOCK_OFFSET) %
+                                    DATA_BLOCK_PER_DOUBLE_INDIRECT_BLOCK / DATA_BLOCK_PER_INDIRECT_BLOCK] =
+                get_free_data();
+            switch (double_indirectb.blocks[(inode->bcnt - DOUBLE_INDIRECT_DATA_BLOCK_OFFSET) %
+                                            DATA_BLOCK_PER_DOUBLE_INDIRECT_BLOCK / DATA_BLOCK_PER_INDIRECT_BLOCK])
             {
             case -1:
                 return -1;
@@ -754,6 +738,39 @@ int _append_block(inode_t *const inode, const datablock_t *const db)
             default:
                 break;
             }
+            if (bwrite(inode->double_indirect_blocks[(inode->bcnt - DOUBLE_INDIRECT_DATA_BLOCK_OFFSET) /
+                                                     DATA_BLOCK_PER_DOUBLE_INDIRECT_BLOCK],
+                       &double_indirectb))
+            {
+                printf("写入二级中间数据块失败！\n");
+                return -2;
+            }
+        }
+        if (bread(double_indirectb.blocks[(inode->bcnt - DOUBLE_INDIRECT_DATA_BLOCK_OFFSET) %
+                                          DATA_BLOCK_PER_DOUBLE_INDIRECT_BLOCK / DATA_BLOCK_PER_INDIRECT_BLOCK],
+                  &indirectb))
+        {
+            printf("读取中间数据块失败！\n");
+            return -2;
+        }
+        indirectb.blocks[(inode->bcnt - DOUBLE_INDIRECT_DATA_BLOCK_OFFSET) % DATA_BLOCK_PER_INDIRECT_BLOCK] =
+            get_free_data();
+        switch (indirectb.blocks[(inode->bcnt - DOUBLE_INDIRECT_DATA_BLOCK_OFFSET) % DATA_BLOCK_PER_INDIRECT_BLOCK])
+        {
+        case -1:
+            return -1;
+        case -2:
+            printf("获取空闲数据块失败！\n");
+            return -2;
+        default:
+            break;
+        }
+        if (bwrite(double_indirectb.blocks[(inode->bcnt - DOUBLE_INDIRECT_DATA_BLOCK_OFFSET) %
+                                           DATA_BLOCK_PER_DOUBLE_INDIRECT_BLOCK / DATA_BLOCK_PER_INDIRECT_BLOCK],
+                   &indirectb))
+        {
+            printf("写入中间数据块失败！\n");
+            return -2;
         }
         if (bwrite(indirectb.blocks[(inode->bcnt - DOUBLE_INDIRECT_DATA_BLOCK_OFFSET) % DATA_BLOCK_PER_INDIRECT_BLOCK],
                    db))
@@ -764,16 +781,13 @@ int _append_block(inode_t *const inode, const datablock_t *const db)
     }
     else
     {
+        indirectblock_t indirectb, double_indirectb, triple_indirectb;
         if ((inode->bcnt - TRIPLE_INDIRECT_DATA_BLOCK_OFFSET) % DATA_BLOCK_PER_TRIPLE_INDIRECT_BLOCK == 0)
         {
-            if (triple_indirectbno && bwrite(triple_indirectbno, &triple_indirectb))
-            {
-                printf("写入三级目录中间块失败！\n");
-                return -2;
-            }
-            triple_indirectbno = inode->triple_indirect_blocks[(inode->bcnt - TRIPLE_INDIRECT_DATA_BLOCK_OFFSET) /
-                                                               DATA_BLOCK_PER_TRIPLE_INDIRECT_BLOCK] = get_free_data();
-            switch (triple_indirectbno)
+            inode->triple_indirect_blocks[(inode->bcnt - TRIPLE_INDIRECT_DATA_BLOCK_OFFSET) /
+                                          DATA_BLOCK_PER_TRIPLE_INDIRECT_BLOCK] = get_free_data();
+            switch (inode->triple_indirect_blocks[(inode->bcnt - TRIPLE_INDIRECT_DATA_BLOCK_OFFSET) /
+                                                  DATA_BLOCK_PER_TRIPLE_INDIRECT_BLOCK])
             {
             case -1:
                 return -1;
@@ -783,19 +797,22 @@ int _append_block(inode_t *const inode, const datablock_t *const db)
             default:
                 break;
             }
+        }
+        if (bread(inode->triple_indirect_blocks[(inode->bcnt - TRIPLE_INDIRECT_DATA_BLOCK_OFFSET) /
+                                                DATA_BLOCK_PER_TRIPLE_INDIRECT_BLOCK],
+                  &triple_indirectb))
+        {
+            printf("读取三级中间数据块失败！\n");
+            return -2;
         }
         if ((inode->bcnt - TRIPLE_INDIRECT_DATA_BLOCK_OFFSET) % DATA_BLOCK_PER_DOUBLE_INDIRECT_BLOCK == 0)
         {
-            if (double_indirectbno && bwrite(indirectbno, &double_indirectb))
-            {
-                printf("写入二级目录中间块失败！\n");
-                return -2;
-            }
-            double_indirectbno =
+            triple_indirectb.blocks[(inode->bcnt - TRIPLE_INDIRECT_DATA_BLOCK_OFFSET) %
+                                    DATA_BLOCK_PER_TRIPLE_INDIRECT_BLOCK / DATA_BLOCK_PER_DOUBLE_INDIRECT_BLOCK] =
+                get_free_data();
+            switch (
                 triple_indirectb.blocks[(inode->bcnt - TRIPLE_INDIRECT_DATA_BLOCK_OFFSET) %
-                                        DATA_BLOCK_PER_TRIPLE_INDIRECT_BLOCK / DATA_BLOCK_PER_DOUBLE_INDIRECT_BLOCK] =
-                    get_free_data();
-            switch (double_indirectbno)
+                                        DATA_BLOCK_PER_TRIPLE_INDIRECT_BLOCK / DATA_BLOCK_PER_DOUBLE_INDIRECT_BLOCK])
             {
             case -1:
                 return -1;
@@ -805,19 +822,28 @@ int _append_block(inode_t *const inode, const datablock_t *const db)
             default:
                 break;
             }
+            if (bwrite(inode->triple_indirect_blocks[(inode->bcnt - TRIPLE_INDIRECT_DATA_BLOCK_OFFSET) /
+                                                     DATA_BLOCK_PER_TRIPLE_INDIRECT_BLOCK],
+                       &triple_indirectb))
+            {
+                printf("写入三级中间数据块失败！\n");
+                return -2;
+            }
+        }
+        if (bread(triple_indirectb.blocks[(inode->bcnt - TRIPLE_INDIRECT_DATA_BLOCK_OFFSET) %
+                                          DATA_BLOCK_PER_TRIPLE_INDIRECT_BLOCK / DATA_BLOCK_PER_DOUBLE_INDIRECT_BLOCK],
+                  &double_indirectb))
+        {
+            printf("读取二级中间数据块失败！\n");
+            return -2;
         }
         if ((inode->bcnt - TRIPLE_INDIRECT_DATA_BLOCK_OFFSET) % DATA_BLOCK_PER_INDIRECT_BLOCK == 0)
         {
-            if (indirectbno && bwrite(indirectbno, &indirectb))
-            {
-                printf("写入目录中间块失败！\n");
-                return -2;
-            }
-            indirectbno =
-                double_indirectb.blocks[(inode->bcnt - TRIPLE_INDIRECT_DATA_BLOCK_OFFSET) %
-                                        DATA_BLOCK_PER_DOUBLE_INDIRECT_BLOCK / DATA_BLOCK_PER_INDIRECT_BLOCK] =
-                    get_free_data();
-            switch (indirectbno)
+            double_indirectb.blocks[(inode->bcnt - TRIPLE_INDIRECT_DATA_BLOCK_OFFSET) %
+                                    DATA_BLOCK_PER_DOUBLE_INDIRECT_BLOCK / DATA_BLOCK_PER_INDIRECT_BLOCK] =
+                get_free_data();
+            switch (double_indirectb.blocks[(inode->bcnt - TRIPLE_INDIRECT_DATA_BLOCK_OFFSET) %
+                                            DATA_BLOCK_PER_DOUBLE_INDIRECT_BLOCK / DATA_BLOCK_PER_INDIRECT_BLOCK])
             {
             case -1:
                 return -1;
@@ -827,6 +853,40 @@ int _append_block(inode_t *const inode, const datablock_t *const db)
             default:
                 break;
             }
+            if (bwrite(triple_indirectb
+                           .blocks[(inode->bcnt - TRIPLE_INDIRECT_DATA_BLOCK_OFFSET) %
+                                   DATA_BLOCK_PER_TRIPLE_INDIRECT_BLOCK / DATA_BLOCK_PER_DOUBLE_INDIRECT_BLOCK],
+                       &double_indirectb))
+            {
+                printf("写入二级中间数据块失败！\n");
+                return -2;
+            }
+        }
+        if (bread(double_indirectb.blocks[(inode->bcnt - TRIPLE_INDIRECT_DATA_BLOCK_OFFSET) %
+                                          DATA_BLOCK_PER_DOUBLE_INDIRECT_BLOCK / DATA_BLOCK_PER_INDIRECT_BLOCK],
+                  &indirectb))
+        {
+            printf("读取中间数据块失败！\n");
+            return -2;
+        }
+        indirectb.blocks[(inode->bcnt - TRIPLE_INDIRECT_DATA_BLOCK_OFFSET) % DATA_BLOCK_PER_INDIRECT_BLOCK] =
+            get_free_data();
+        switch (indirectb.blocks[(inode->bcnt - TRIPLE_INDIRECT_DATA_BLOCK_OFFSET) % DATA_BLOCK_PER_INDIRECT_BLOCK])
+        {
+        case -1:
+            return -1;
+        case -2:
+            printf("获取空闲数据块失败！\n");
+            return -2;
+        default:
+            break;
+        }
+        if (bwrite(double_indirectb.blocks[(inode->bcnt - TRIPLE_INDIRECT_DATA_BLOCK_OFFSET) %
+                                           DATA_BLOCK_PER_DOUBLE_INDIRECT_BLOCK / DATA_BLOCK_PER_INDIRECT_BLOCK],
+                   &indirectb))
+        {
+            printf("写入中间数据块失败！\n");
+            return -2;
         }
         if (bwrite(indirectb.blocks[(inode->bcnt - TRIPLE_INDIRECT_DATA_BLOCK_OFFSET) % DATA_BLOCK_PER_INDIRECT_BLOCK],
                    db))
@@ -834,22 +894,6 @@ int _append_block(inode_t *const inode, const datablock_t *const db)
             printf("读取数据块失败！\n");
             return -2;
         }
-    }
-
-    if (indirectbno && bwrite(indirectbno, &indirectb))
-    {
-        printf("写入目录中间块失败！\n");
-        return -2;
-    }
-    if (double_indirectbno && bwrite(indirectbno, &double_indirectb))
-    {
-        printf("写入二级目录中间块失败！\n");
-        return -2;
-    }
-    if (triple_indirectbno && bwrite(triple_indirectbno, &triple_indirectb))
-    {
-        printf("写入三级目录中间块失败！\n");
-        return -2;
     }
 
     inode->bcnt++;

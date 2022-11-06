@@ -806,7 +806,6 @@ int read_file(uint32_t ino, uint32_t uid, uint32_t page, datablock_t *const db)
     if (page >= inode.bcnt)
         return -3;
 
-    indirectblock_t indirectb, double_indirectb, triple_indiectb;
     if (page < DIRECT_DATA_BLOCK_CNT)
     {
         if (bread(inode.direct_blocks[page], db))
@@ -817,46 +816,37 @@ int read_file(uint32_t ino, uint32_t uid, uint32_t page, datablock_t *const db)
     }
     else if (page - INDIRECT_DATA_BLOCK_OFFSET < INDIRECT_DATA_BLOCK_CNT)
     {
-        if ((page - INDIRECT_DATA_BLOCK_OFFSET) % DATA_BLOCK_PER_INDIRECT_BLOCK == 0)
+        indirectblock_t indirectb;
+        if (bread(inode.indirect_blocks[(page - INDIRECT_DATA_BLOCK_OFFSET) / DATA_BLOCK_PER_INDIRECT_BLOCK],
+                  &indirectb))
         {
-            if (bread(inode.indirect_blocks[(page - INDIRECT_DIR_OFFSET) / DIR_ENTRY_PER_INDIRECT_BLOCK], &indirectb))
-            {
-                printf("读取目录中间块失败！\n");
-                return -4;
-            }
+            printf("读取目录中间块失败！\n");
+            return -4;
         }
-        if (bread(indirectb.blocks[(page - INDIRECT_DIR_OFFSET) % DIR_ENTRY_PER_INDIRECT_BLOCK / DIRECT_DIR_ENTRY_CNT],
-                  db))
+        if (bread(indirectb.blocks[(page - INDIRECT_DATA_BLOCK_OFFSET) % DATA_BLOCK_PER_INDIRECT_BLOCK], db))
         {
             printf("读取数据块失败！\n");
             return -4;
         }
     }
-    else if ((page - DOUBLE_INDIRECT_DIR_OFFSET) < DOUBLE_INDIRECT_DIR_ENTRY_CNT)
+    else if ((page - DOUBLE_INDIRECT_DATA_BLOCK_OFFSET) < DOUBLE_INDIRECT_DATA_BLOCK_CNT)
     {
-        if ((page - DOUBLE_INDIRECT_DIR_OFFSET) % DIR_ENTRY_PER_DOUBLE_INDIRECT_BLOCK == 0)
+        indirectblock_t indirectb, double_indirectb;
+        if (bread(inode.double_indirect_blocks[(page - DOUBLE_INDIRECT_DATA_BLOCK_OFFSET) /
+                                               DATA_BLOCK_PER_DOUBLE_INDIRECT_BLOCK],
+                  &double_indirectb))
         {
-            if (bread(inode.double_indirect_blocks[(page - DOUBLE_INDIRECT_DIR_OFFSET) /
-                                                   DIR_ENTRY_PER_DOUBLE_INDIRECT_BLOCK],
-                      &double_indirectb))
-            {
-                printf("读取二级目录中间块失败！\n");
-                return -4;
-            }
+            printf("读取二级目录中间块失败！\n");
+            return -4;
         }
-        if ((page - DOUBLE_INDIRECT_DIR_OFFSET) % DIR_ENTRY_PER_INDIRECT_BLOCK == 0)
+        if (bread(double_indirectb.blocks[(page - DOUBLE_INDIRECT_DATA_BLOCK_OFFSET) %
+                                          DATA_BLOCK_PER_DOUBLE_INDIRECT_BLOCK / DATA_BLOCK_PER_INDIRECT_BLOCK],
+                  &indirectb))
         {
-            if (bread(double_indirectb.blocks[(page - DOUBLE_INDIRECT_DIR_OFFSET) %
-                                              DIR_ENTRY_PER_DOUBLE_INDIRECT_BLOCK / DIR_ENTRY_PER_INDIRECT_BLOCK],
-                      &indirectb))
-            {
-                printf("读取目录中间块失败！\n");
-                return -4;
-            }
+            printf("读取目录中间块失败！\n");
+            return -4;
         }
-        if (bread(indirectb.blocks[(page - DOUBLE_INDIRECT_DIR_OFFSET) % DIR_ENTRY_PER_INDIRECT_BLOCK /
-                                   DIRECT_DIR_ENTRY_CNT],
-                  db))
+        if (bread(indirectb.blocks[(page - DOUBLE_INDIRECT_DATA_BLOCK_OFFSET) % DATA_BLOCK_PER_INDIRECT_BLOCK], db))
         {
             printf("读取数据块失败！\n");
             return -4;
@@ -864,39 +854,29 @@ int read_file(uint32_t ino, uint32_t uid, uint32_t page, datablock_t *const db)
     }
     else
     {
-        if ((page - TRIPLE_INDIRECT_DIR_OFFSET) % DIR_ENTRY_PER_TRIPLE_INDIRECT_BLOCK == 0)
+        indirectblock_t indirectb, double_indirectb, triple_indiectb;
+        if (bread(inode.triple_indirect_blocks[(page - TRIPLE_INDIRECT_DATA_BLOCK_OFFSET) /
+                                               DATA_BLOCK_PER_TRIPLE_INDIRECT_BLOCK],
+                  &triple_indiectb))
         {
-            if (bread(inode.triple_indirect_blocks[(page - TRIPLE_INDIRECT_DIR_OFFSET) /
-                                                   DIR_ENTRY_PER_TRIPLE_INDIRECT_BLOCK],
-                      &triple_indiectb))
-            {
-                printf("读取三级目录中间块失败！\n");
-                return -4;
-            }
+            printf("读取三级目录中间块失败！\n");
+            return -4;
         }
-        if ((page - TRIPLE_INDIRECT_DIR_OFFSET) % DIR_ENTRY_PER_DOUBLE_INDIRECT_BLOCK == 0)
+        if (bread(triple_indiectb.blocks[(page - TRIPLE_INDIRECT_DATA_BLOCK_OFFSET) %
+                                         DATA_BLOCK_PER_TRIPLE_INDIRECT_BLOCK / DATA_BLOCK_PER_DOUBLE_INDIRECT_BLOCK],
+                  &double_indirectb))
         {
-            if (bread(triple_indiectb.blocks[(page - TRIPLE_INDIRECT_DIR_OFFSET) % DIR_ENTRY_PER_TRIPLE_INDIRECT_BLOCK /
-                                             DIR_ENTRY_PER_DOUBLE_INDIRECT_BLOCK],
-                      &double_indirectb))
-            {
-                printf("读取二级目录中间块失败！\n");
-                return -4;
-            }
+            printf("读取二级目录中间块失败！\n");
+            return -4;
         }
-        if ((page - TRIPLE_INDIRECT_DIR_OFFSET) % DIR_ENTRY_PER_INDIRECT_BLOCK == 0)
+        if (bread(double_indirectb.blocks[(page - TRIPLE_INDIRECT_DATA_BLOCK_OFFSET) %
+                                          DATA_BLOCK_PER_DOUBLE_INDIRECT_BLOCK / DATA_BLOCK_PER_INDIRECT_BLOCK],
+                  &indirectb))
         {
-            if (bread(double_indirectb.blocks[(page - TRIPLE_INDIRECT_DIR_OFFSET) %
-                                              DIR_ENTRY_PER_DOUBLE_INDIRECT_BLOCK / DIR_ENTRY_PER_INDIRECT_BLOCK],
-                      &indirectb))
-            {
-                printf("读取目录中间块失败！\n");
-                return -4;
-            }
+            printf("读取目录中间块失败！\n");
+            return -4;
         }
-        if (bread(indirectb.blocks[(page - TRIPLE_INDIRECT_DIR_OFFSET) % DIR_ENTRY_PER_INDIRECT_BLOCK /
-                                   DIRECT_DIR_ENTRY_CNT],
-                  db))
+        if (bread(indirectb.blocks[(page - TRIPLE_INDIRECT_DATA_BLOCK_OFFSET) % DATA_BLOCK_PER_INDIRECT_BLOCK], db))
         {
             printf("读取数据块失败！\n");
             return -4;
