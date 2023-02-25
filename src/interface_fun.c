@@ -122,8 +122,16 @@ uint16_t info(uint32_t uid)
     i += 2 + uint2width(sb.data_bitmap_start);
     strcpy(spec_shm + i, "数据块起始块号：");
     i += 24;
-    sprintf(spec_shm + i, "%u", sb.data_start);
-    i += uint2width(sb.data_start);
+    sprintf(spec_shm + i, "%u\r\n", sb.data_start);
+    i += 2 + uint2width(sb.data_start);
+    strcpy(spec_shm + i, "上次分配到的 inode 编号：");
+    i += 34;
+    sprintf(spec_shm + i, "%u\r\n", sb.last_alloc_inode);
+    i += 2 + uint2width(sb.last_alloc_inode);
+    strcpy(spec_shm + i, "上次分配到的数据块编号：");
+    i += 36;
+    sprintf(spec_shm + i, "%u", sb.last_alloc_data);
+    i += uint2width(sb.last_alloc_data);
 
     pthread_rwlock_unlock(sb_lock);
 

@@ -105,7 +105,7 @@ typedef struct
     uint32_t uid;
     uint32_t ctime;
     uint32_t wtime;
-    uint32_t privilege; // 仅低 8 位有效，高 4 位中的低 3 位为拥有者权限，低 4 位中的低 3 位为其他用户权限。
+    uint32_t privilege; // 仅低 6 位有效，高 3 位为拥有者权限，低 3 位为其他用户权限。
     uint32_t direct_blocks[DIRECT_BLOCK_CNT];
     uint32_t indirect_blocks[INDIRECT_BLOCK_CNT];
     uint32_t double_indirect_blocks[DOUBLE_INDIRECT_BLOCK_CNT];
